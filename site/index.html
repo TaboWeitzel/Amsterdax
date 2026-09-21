@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Open journal scores (Journal Network Share and Article Network Score) computed from OpenAlex, across several journal universes.">
+  <meta name="color-scheme" content="light">
+  <title>Amsterdax · Open journal scores</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="#"><span class="brand-mark" aria-hidden="true">A</span> Amsterdax</a>
+    <span class="masthead-note">Open JNS &amp; ANS from OpenAlex</span>
+    <a class="method-link" href="#methodology">About the numbers <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <div class="intro">
+      <div><p class="eyebrow">EXPLORE · COMPARE · DOWNLOAD</p><h1>Open journal scores.</h1>
+        <p class="subtitle">Journal Network Share and Article Network Score computed from open OpenAlex data, across several journal universes.</p></div>
+    </div>
+    <div class="notice" id="notice" role="status">Loading the data…</div>
+
+    <section class="score-controls panel" aria-label="Choose precomputed scores">
+      <label class="control run-control">Data run<select id="run"></select></label>
+      <label class="control year-control">Score year<select id="year"></select></label>
+      <fieldset class="universe-control" id="universes"><legend>Show score columns</legend></fieldset>
+      <div class="treatment-control"><label class="check-line"><input id="include-zero" type="checkbox" checked><strong>Include publications with no linked references</strong></label>
+        <p id="treatment-note"></p></div>
+    </section>
+
+    <section class="reference-panel panel" aria-labelledby="reference-title">
+      <div class="section-heading"><div><h2 id="reference-title">Define the percentile comparison group</h2><p>Scores stay fixed. These choices determine which journals enter the rankings.</p></div>
+        <button type="button" class="quiet-button" id="sbe-preset">Try SBE-style settings <span aria-hidden="true">↗</span></button></div>
+      <div class="reference-controls">
+        <label class="control">Rank on<select id="rank-universe"></select></label>
+        <label class="control">Indicator<select id="metric"></select></label>
+        <label class="control wide-control">Field classification<select id="classification"><option value="oa_field">OpenAlex · fields (narrower)</option><option value="oa_domain">OpenAlex · domains (broad)</option><option value="norwegian_field">Norwegian · fields (narrower)</option><option value="norwegian_area">Norwegian · areas (broad)</option></select></label>
+        <label class="control">Reference coverage<select id="coverage"><option value="-1">No minimum</option><option value="0">Above 0%</option><option value="20" selected>Above 20%</option><option value="50">Above 50%</option><option value="80">Above 80%</option><option value="90">Above 90%</option></select></label>
+        <label class="control">Years with output<select id="min-years"><option value="0" selected>No minimum</option><option value="4">At least 4 of 5</option><option value="5">All 5 years</option></select></label>
+        <label class="control top-control">Retain top % per field<div class="input-suffix"><input id="top-percent" type="number" min="1" max="100" step="1" value="100"><span>%</span></div></label>
+      </div>
+      <div class="pool-summary"><span id="pool-summary" aria-live="polite"></span><label class="check-line"><input id="pool-only" type="checkbox">Show only retained journals</label></div>
+    </section>
+
+    <section class="table-panel panel" aria-label="Journal results">
+      <div class="table-toolbar">
+        <label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Search journals" placeholder="Search journal, ISSN, source ID or publisher…"></label>
+        <label class="visually-hidden" for="field-filter">Filter by field</label><select id="field-filter"><option value="">All fields</option></select>
+        <button type="button" class="quiet-button" id="more-filters" aria-expanded="false" aria-controls="extra-filters">More filters <span aria-hidden="true">+</span></button>
+        <button type="button" class="quiet-button" id="download-view">Download this view (CSV) <span aria-hidden="true">↓</span></button>
+      </div>
+      <div class="extra-filters" id="extra-filters" hidden>
+        <label class="control">Universe<select id="member"></select></label>
+        <label class="control">Publisher<select id="publisher"><option value="">All publishers</option></select></label>
+        <label class="control">Norwegian level<select id="level"><option value="">All levels</option></select></label>
+        <label class="check-line"><input id="oa-only" type="checkbox">Open access journals only</label>
+        <label class="check-line"><input id="details-columns" type="checkbox">Show publisher, ISSNs &amp; level as columns</label>
+      </div>
+      <div class="results-line"><span id="result-count" aria-live="polite"></span><span id="sort-status"></span><button class="text-button" id="reset" type="button">Reset all</button></div>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable journal table; use the horizontal scrollbar for more columns">
+        <table id="journals"><caption class="visually-hidden">Journals, precomputed scores and percentiles. Activate column headings to sort.</caption><thead id="table-head"></thead><tbody id="table-body"></tbody></table>
+      </div>
+      <div class="table-footer"><span id="page-status"></span><span class="legend">— no score · <span class="not-member">·</span> not in this universe</span>
+        <div class="pagination"><button id="previous" type="button" aria-label="Previous page">←</button><button id="next" type="button" aria-label="Next page">→</button></div></div>
+    </section>
+
+    <section class="downloads panel" aria-labelledby="downloads-title">
+      <h2 id="downloads-title">Download the data</h2>
+      <p id="download-year"></p>
+      <ul id="download-runs"></ul>
+    </section>
+
+    <details class="methodology panel" id="methodology">
+      <summary>How to read this table <span>Definitions and ranking rules</span></summary>
+      <div class="method-grid">
+        <section><h3>What changes when you switch?</h3><p>Run, year, universe and reference treatment select stored JNS and ANS results. The Journal Network Share (JNS) is a journal’s share of citation-network prestige within a universe; the Article Network Score (ANS) adjusts it for the journal’s share of eligible publications. Neither is recalculated by this page. Both follow the recursive citation-network method of <a href="https://doi.org/10.1523/JNEUROSCI.0003-08.2008">Bergstrom, West and Wiseman (2008)</a>, computed from open OpenAlex data.</p><p>For score year t, publications are articles and reviews from t−5 to t−1, and citations are those made in year t to these publications, excluding journal self-citations. Reference coverage is the share of these publications with at least one linked OpenAlex reference. It describes what OpenAlex records, not whether an article has a bibliography. Turning off the checkbox selects the precomputed Filtered scores.</p><p>A dash means a journal is in the universe but has no score. A dot means it is not in that universe. Zero is shown as a number.</p></section>
+        <section><h3>Which journals define a percentile?</h3><p>Start with all journals in the chosen universe with a defined score. Apply the reference-coverage and publication-history requirements. Within each field, percentile = 100 × number of eligible journals with an equal or lower score ÷ number of eligible journals in that field.</p><p>Keep journals whose field percentile is strictly above 100 minus the retained top percentage. Ties receive their highest shared percentile, so the retained share can exceed the requested percentage. The pool percentile then uses the same formula across all retained journals. With ANS selected, this is the ANS percentile on a 0–100 scale.</p><p>Search, filters, visible columns, sorting and pages only change what you see. They never change the comparison group. Journals without a field form an explicit “Unclassified” group.</p></section>
+        <section><h3>SBE-style settings</h3><p>The preset uses Filtered Norwegian ANS, reference coverage strictly above 20%, output in at least 4 of 5 years, and the top 70% within OpenAlex fields.</p><p id="provenance"></p></section>
+      </div>
+    </details>
+    <footer class="page-footer"><span>AMSTERDAX <span aria-hidden="true">/</span> Open journal scores</span><span>Precomputed scores. Transparent comparison groups.</span></footer>
+  </main>
+  <dialog id="journal-dialog" aria-labelledby="dialog-title"><button id="close-dialog" class="dialog-close" aria-label="Close journal details">×</button><div id="dialog-content"></div></dialog>
+  <noscript><p class="noscript">Enable JavaScript to search, filter and sort the journal table.</p></noscript>
+</body>
+</html>

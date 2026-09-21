@@ -1,0 +1,15 @@
+# Data is published as GitHub Releases, never committed
+export/
+site/data/
+*.parquet
+*.csv
+
+# Licensed inputs (JCR/Clarivate, SBE lists) must never be committed
+*.xlsx
+*.xls
+
+# Local only
+working-notes.md
+website-demo/
+.claude/
+__pycache__/
