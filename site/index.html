@@ -23,7 +23,7 @@
     <div class="notice" id="notice" role="status">Loading the data…</div>
 
     <section class="score-controls panel" aria-label="Choose the scores to show">
-      <div class="control run-control"><span class="label-line"><label for="run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip"></span></span></span><select id="run"></select></div>
+      <div class="control run-control"><span class="label-line"><label for="run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip">Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. Use an older run to reproduce earlier results, and the latest run for the most complete data.</span></span></span><select id="run"></select></div>
       <label class="control year-control">Score year<select id="year"></select></label>
       <fieldset class="universe-control" id="universe"><legend>Universe</legend></fieldset>
       <button type="button" class="quiet-button settings-button" id="settings-toggle" aria-expanded="false" aria-controls="settings">Settings <span aria-hidden="true">+</span></button>
@@ -44,7 +44,6 @@
           <label class="control">Publisher<select id="publisher"><option value="">All publishers</option></select></label>
           <label class="control">Norwegian level<select id="level"><option value="">All levels</option></select></label>
           <label class="check-line"><input id="oa-only" type="checkbox">Open access journals only</label>
-          <label class="check-line"><input id="details-columns" type="checkbox">Show publisher, ISSNs &amp; level as columns</label>
         </div>
       </div>
       <div class="settings-group">
@@ -69,7 +68,7 @@
         <label class="visually-hidden" for="field-filter">Filter by field</label><select id="field-filter"><option value="">All fields</option></select>
         <button type="button" class="quiet-button" id="download-view">Download this view (CSV) <span aria-hidden="true">↓</span></button>
       </div>
-      <div class="results-line"><span id="result-count" aria-live="polite"></span><span id="sort-status"></span><button class="text-button" id="reset" type="button">Reset all</button></div>
+      <div class="results-line"><span id="result-count" aria-live="polite"></span><button class="text-button" id="reset" type="button">Reset all</button></div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable journal table; use the horizontal scrollbar for more columns">
         <table id="journals"><caption class="visually-hidden">Journals and precomputed scores in the selected universe. Activate column headings to sort.</caption><thead id="table-head"></thead><tbody id="table-body"></tbody></table>
       </div>
@@ -80,7 +79,7 @@
     <section class="downloads panel" aria-labelledby="downloads-title">
       <h2 id="downloads-title">Download the data</h2>
       <div class="settings-row">
-        <div class="control run-control"><span class="label-line"><label for="download-run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip"></span></span></span><select id="download-run"></select></div>
+        <div class="control run-control"><span class="label-line"><label for="download-run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip">Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. Use an older run to reproduce earlier results, and the latest run for the most complete data.</span></span></span><select id="download-run"></select></div>
         <fieldset class="check-group" id="download-years"><legend>Score years</legend></fieldset>
         <fieldset class="check-group" id="download-universes"><legend>Universes</legend></fieldset>
         <button type="button" class="quiet-button" id="download-build">Download CSV <span aria-hidden="true">↓</span></button>
@@ -90,11 +89,10 @@
     </section>
 
     <details class="methodology panel" id="methodology">
-      <summary>How to read this table <span>Definitions and ranking rules</span></summary>
+      <summary>How to read this table <span>Symbols and percentile rules</span></summary>
       <div class="method-grid">
-        <section><h3>What changes when you switch?</h3><p>Run, year, universe and reference treatment select stored JNS and ANS results. The Journal Network Share (JNS) is a journal’s share of citation-network prestige within a universe; the Article Network Score (ANS) adjusts it for the journal’s share of eligible publications. Neither is recalculated by this page. Both follow the recursive citation-network method of <a href="https://doi.org/10.1523/JNEUROSCI.0003-08.2008">Bergstrom, West and Wiseman (2008)</a>, computed from open OpenAlex data.</p><p>For score year t, publications are articles and reviews from t−5 to t−1, and citations are those made in year t to these publications, excluding journal self-citations. Reference coverage is the share of these publications with at least one linked OpenAlex reference. It describes what OpenAlex records, not whether an article has a bibliography. By default the page shows Filtered scores, which only count publications with linked references; the setting “Include publications with no linked references” switches to Raw scores.</p><p>A dash means a journal is in the universe but has no score. Journals outside the selected universe are listed last, with a link to the other universe. Zero is shown as a number.</p></section>
-        <section><h3>Which journals define a percentile?</h3><p>Start with all journals in the selected universe with a defined score. Apply the reference-coverage and publication-history requirements. Within each field, percentile = 100 × number of eligible journals with an equal or lower score ÷ number of eligible journals in that field.</p><p>Keep journals whose field percentile is strictly above 100 minus the retained top percentage. Ties receive their highest shared percentile, so the retained share can exceed the requested percentage. The pool percentile then uses the same formula across all retained journals. With ANS selected, this is the ANS percentile on a 0–100 scale.</p><p>Search, filters, visible columns, sorting and pages only change what you see. They never change the comparison group. Journals without a field form an explicit “Unclassified” group.</p></section>
-        <section><h3>Example preset</h3><p>The example preset uses Filtered scores in the Norwegian Register universe, ANS, OpenAlex fields, reference coverage strictly above 20%, output in at least 4 of 5 years, and the top 70% within each field.</p><p id="provenance"></p></section>
+        <section><h3>Symbols and filters</h3><p>A dash means a journal is in the selected universe but has no score. Zero is shown as a number. Journals outside the selected universe are listed last, with a link to a universe that contains them.</p><p>Search, filters, sorting and pages only change what you see. They never change the percentiles.</p><p>What the scores measure, the journal universes and Raw and Filtered scores are explained on the <a href="about.html">About page</a>.</p></section>
+        <section><h3>How percentiles are calculated</h3><p>Start with all journals in the selected universe with a defined score, and apply the reference-coverage and publication-history requirements. Within each field, percentile = 100 × number of eligible journals with an equal or lower score ÷ number of eligible journals in that field. Journals without a field form an explicit “Unclassified” group.</p><p>Keep journals whose field percentile is strictly above 100 minus the retained top percentage. Ties receive their highest shared percentile, so the retained share can exceed the requested percentage. The pool percentile then uses the same formula across all retained journals, on a 0–100 scale.</p><p>The example preset uses Filtered scores in the Norwegian Register universe, ANS, OpenAlex fields, reference coverage strictly above 20%, output in at least 4 of 5 years, and the top 70% within each field.</p></section>
       </div>
     </details>
     <footer class="page-footer"><span>AMSTERDAX <span aria-hidden="true">/</span> Open journal scores</span><span>Precomputed scores. Transparent comparison groups.</span></footer>

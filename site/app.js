@@ -4,9 +4,6 @@ import * as E from './engine.js';
 
 const $ = id => document.getElementById(id);
 const PAGE_SIZE = 25;
-const RUN_HELP = 'Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. ' +
-  'OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. ' +
-  'Use an older run to reproduce earlier results, and the latest run for the most complete data.';
 // Columns in every downloaded CSV; the chosen universes add their own columns.
 const BASE_COLUMNS = ['openalex_id', 'title', 'publisher', 'issn_l', 'issns', 'oa_domain', 'oa_field', 'norwegian_area',
   'norwegian_field', 'norwegian_level', 'is_open_access', 'score_year', 'publications_raw', 'publications_filtered',
@@ -20,7 +17,7 @@ const METRICS = {
 const DEFAULTS = {
   treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'norwegian_field',
   minCoverage: 20, minYears: 0, topPercent: 100, query: '', fieldFilter: '', publisher: '', level: '',
-  onlyMembers: false, oaOnly: false, poolOnly: false, details: false, showPercentiles: false,
+  onlyMembers: false, oaOnly: false, poolOnly: false, showPercentiles: false,
   sortKey: 'score:per_article', sortDirection: -1, page: 0,
 };
 const EXAMPLE_PRESET = {
@@ -102,8 +99,6 @@ function showRunInfo() {
   notice.textContent = manifest.dummy
     ? `Dummy data: every journal and number in run ${run.run} is made up, for testing the website only.`
     : `Run ${run.run} · OpenAlex snapshot ${manifest.openalex_snapshot} · Norwegian Register snapshot ${manifest.norwegian_register_snapshot}`;
-  $('provenance').textContent = `Run ${run.run} was created on ${manifest.created}. Norwegian fields and levels come from the ` +
-    'Norwegian Register for Scientific Journals, Series and Publishers; journal metadata and citations from OpenAlex.';
 }
 
 // ---- Table ----
@@ -113,11 +108,6 @@ function getColumns() {
     { key: 'title', label: 'Journal', className: 'journal-column align-left', title: 'Click the title for details; click the ID to open OpenAlex' },
     { key: 'field', label: 'Field', className: 'align-left', title: 'Classification used for within-field ranking' },
   ];
-  if (state.details) cols.push(
-    { key: 'issns', label: 'ISSNs', className: 'align-left' },
-    { key: 'publisher', label: 'Publisher', className: 'align-left' },
-    { key: 'norwegian_level', label: 'N level', title: `Norwegian Register level in ${year}` },
-    { key: 'active_years', label: 'Years / 5', title: 'Years with at least one eligible article or review' });
   cols.push(
     { key: 'publications', label: 'Publications', title: `Articles and reviews ${year - 5}–${year - 1}${state.treatment === 'raw' ? '' : ' with at least one linked reference'}` },
     { key: 'citations', label: 'Citations', title: `Citations in ${year} to those publications, excluding journal self-citations` },
@@ -152,8 +142,6 @@ function cell(row, col) {
     `<a class="journal-id" href="${openAlexUrl(row)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escape(row.title)} in OpenAlex, new tab">${escape(id)} ↗</a>` +
     `<span class="journal-id"> · ${escape(row.issn_l || 'no ISSN')}</span></td>`;
   if (col.key === 'field') return `<td class="field-cell">${escape(value)}</td>`;
-  if (col.key === 'publisher' || col.key === 'issns') return `<td class="publisher-cell">${escape(value || '—')}</td>`;
-  if (col.key === 'norwegian_level') return `<td>${escape(value ?? '—')}</td>`;
   if (col.key === 'reference_coverage_pct') {
     const low = E.isNumber(value) && state.minCoverage >= 0 && value <= state.minCoverage;
     const bar = E.isNumber(value) ? `<div class="coverage-track" aria-hidden="true"><div class="coverage-fill" style="width:${Math.max(0, Math.min(100, value))}%"></div></div>` : '';
@@ -198,7 +186,6 @@ function drawPage() {
   $('table-body').innerHTML = shown.length ? shown.map(row => `<tr>${columns.map(col => cell(row, col)).join('')}</tr>`).join('')
     : `<tr><td colspan="${columns.length}" class="empty-cell">No journals match these choices. Try a broader search or reset the filters.</td></tr>`;
   $('result-count').textContent = `${count(visible.length)} journals shown · ${count(memberCount)} of ${count(rows.length)} are in the ${universeName(state.universe)} universe`;
-  $('sort-status').textContent = `Sorted by ${columns.find(c => c.key === state.sortKey)?.label || 'journal'} ${state.sortDirection === 1 ? '↑' : '↓'}`;
   $('pool-summary').innerHTML = `<strong>${count(ranks.qualified)}</strong> meet the requirements · <strong>${count(ranks.groups)}</strong> fields · ` +
     `<strong>${count(ranks.retained)}</strong> retained for the final percentile${ranks.retained ? '' : ' — broaden the requirements to define percentiles'}`;
   $('page-status').textContent = visible.length ? `${count(state.page * PAGE_SIZE + 1)}–${count(state.page * PAGE_SIZE + shown.length)} of ${count(visible.length)} journals` : '0 journals';
@@ -213,8 +200,7 @@ function drawPage() {
 const SELECTS = { metric: 'metric', classification: 'classification', coverage: 'minCoverage', 'min-years': 'minYears',
   'field-filter': 'fieldFilter', publisher: 'publisher', level: 'level' };
 const NUMERIC = new Set(['minCoverage', 'minYears']);
-const CHECKBOXES = { 'only-members': 'onlyMembers', 'oa-only': 'oaOnly', 'details-columns': 'details',
-  'show-percentiles': 'showPercentiles', 'pool-only': 'poolOnly' };
+const CHECKBOXES = { 'only-members': 'onlyMembers', 'oa-only': 'oaOnly', 'show-percentiles': 'showPercentiles', 'pool-only': 'poolOnly' };
 
 function setChoices(id, values, label) {
   const unique = [...new Set(values.filter(v => v != null && v !== ''))].sort((a, b) => E.compareText(String(a), String(b)));
@@ -411,7 +397,7 @@ $('settings-toggle').addEventListener('click', () => {
 $('table-head').addEventListener('click', event => {
   const key = event.target.closest('[data-sort]')?.dataset.sort;
   if (!key) return;
-  const textColumn = ['title', 'field', 'publisher', 'issns'].includes(key);
+  const textColumn = ['title', 'field'].includes(key);
   update({ sortKey: key, sortDirection: state.sortKey === key ? -state.sortDirection : textColumn ? 1 : -1 });
   $('table-head').querySelector(`[data-sort="${key}"]`)?.focus({ preventScroll: true });
 });
@@ -439,7 +425,6 @@ $('reset').addEventListener('click', () => {
 
 // ---- Start ----
 
-document.querySelectorAll('.help-text').forEach(element => { element.textContent = RUN_HELP; });
 $('metric').innerHTML = Object.entries(METRICS).map(([metric, m]) => option(metric, `${m.short} · ${m.name}`)).join('');
 try {
   index = await (await fetchOk('data/runs.json')).json();
