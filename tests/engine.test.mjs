@@ -9,9 +9,9 @@ function equal(actual, expected) {
   if (actual !== expected) throw new Error(`expected ${expected}, got ${actual}`);
 }
 
-const base = { treatment: 'raw', rankUniverse: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20, minYears: 4,
-  topPercent: 70, query: '', fieldFilter: '', publisher: '', level: '', member: '', oaOnly: false, poolOnly: false,
-  sortKey: 'score:n:per_article', sortDirection: -1 };
+const base = { treatment: 'raw', universe: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20, minYears: 4,
+  topPercent: 70, query: '', fieldFilter: '', publisher: '', level: '', onlyMembers: false, oaOnly: false, poolOnly: false,
+  sortKey: 'score:per_article', sortDirection: -1 };
 
 function journal(id, score, { coverage = 90, activeYears = 5, field = 'Economics', level = 1, inN = true } = {}) {
   return { openalex_id: id, title: id, publisher: 'Test publisher', oa_field: field, norwegian_level: level,
@@ -30,8 +30,8 @@ check('Percentiles keep zero and give ties their highest shared rank', () => {
 check('Universe, missing-score, coverage and history requirements apply before the top-share cut', () => {
   const r = E.rank(fixture, base);
   equal(r.qualified, 5); equal(r.groups, 2); equal(r.retained, 4);
-  equal(r.reasons.get('outside'), 'Not in the ranking universe');
-  equal(r.reasons.get('missing'), 'No score in the ranking universe');
+  equal(r.reasons.get('outside'), 'Not in the selected universe');
+  equal(r.reasons.get('missing'), 'No score in the selected universe');
   equal(r.reasons.get('boundary'), 'Below the reference coverage requirement');
   equal(r.reasons.get('short'), 'Below the publication history requirement');
   equal(r.fieldRanks.get('zero'), 25); equal(r.poolRanks.has('zero'), false);
@@ -46,11 +46,15 @@ check('Search and filters change what is shown, not the percentiles', () => {
   const filtered = { ...base, query: 'high', publisher: 'Test publisher', poolOnly: true };
   equal(JSON.stringify([...E.rank(fixture, filtered).poolRanks]), JSON.stringify([...r.poolRanks]));
   equal(E.view(fixture, filtered, r).length, 1);
-  equal(E.view(fixture, { ...base, member: 'n' }, r).some(row => row.openalex_id === 'outside'), false);
+  equal(E.view(fixture, { ...base, onlyMembers: true }, r).some(row => row.openalex_id === 'outside'), false);
 });
-check('Missing scores sort last in both directions; zero stays a number', () => {
+check('Journals outside the universe come last, then missing scores; zero stays a number', () => {
   const r = E.rank(fixture, base);
-  for (const direction of [1, -1]) equal(E.view(fixture, { ...base, sortDirection: direction }, r).at(-1).openalex_id, 'missing');
+  for (const direction of [1, -1]) {
+    const shown = E.view(fixture, { ...base, sortDirection: direction }, r);
+    equal(shown.at(-1).openalex_id, 'outside'); equal(shown.at(-2).openalex_id, 'missing');
+  }
+  equal(E.view(fixture, { ...base, sortKey: 'title', sortDirection: 1 }, r).at(-1).openalex_id, 'outside');
   equal(E.view(fixture, { ...base, sortDirection: 1 }, r)[0].openalex_id, 'zero');
 });
 check('Norwegian level filter matches the level in the score year', () => {

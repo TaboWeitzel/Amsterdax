@@ -26,7 +26,7 @@ One release per run. The tag is the run name, e.g. `2026-Q3`. Each release conta
   "openalex_snapshot": "2026-06-26",
   "norwegian_register_snapshot": "2026-07-26",
   "years": [2022, 2023, 2024, 2025],
-  "universes": {"n": "Norwegian Register", "l": "Leiden (CWTS)", "oa": "OpenAlex"}
+  "universes": {"n": "Norwegian Register", "oa": "OpenAlex"}
 }
 ```
 
@@ -58,10 +58,11 @@ One release per run. The tag is the run name, e.g. `2026-Q3`. Each release conta
 
 Based on the existing demo prototype.
 
-- Pick a run (default: latest) and a score year.
-- Table of all journals: search by title, ID, ISSN or publisher. Filter by field, publisher, Norwegian level, open access and universe membership. Sort by any column. Rows are shown a page at a time.
-- Score columns per universe (can be shown or hidden) and a Raw/Filtered switch. "Not in this universe" is shown differently from "in this universe, but no score".
-- Percentiles are computed in the browser from the chosen settings: ranking universe, JNS or ANS, field classification, minimum reference coverage, minimum active years and top % kept per field. An SBE-style preset fills these in. Ties get the highest shared rank (as in the report).
+- Top bar: run (default: latest), score year, universe (Norwegian Register by default, or OpenAlex) and a Settings button. All other choices are in one collapsible settings panel.
+- Table of all journals with the JNS and ANS of the selected universe. Search by title, ID, ISSN or publisher; filter by field, publisher, Norwegian level and open access; sort by any column; rows are shown a page at a time.
+- Journals outside the selected universe stay in the table, listed last, with a link to switch to a universe that contains them. A setting hides them. "Not in this universe" is shown differently from "in this universe, but no score".
+- Defaults: Filtered scores (a setting switches to Raw) and Norwegian fields as field classification.
+- Percentiles are off by default. When switched on, they are computed in the browser within the selected universe, from the chosen indicator (JNS or ANS), field classification, minimum reference coverage, minimum active years and top % kept per field. An example preset fills these in. Ties get the highest shared rank.
 - Journal detail view, with a link to OpenAlex.
 - Downloads: the current view as CSV, a full year as CSV or Parquet, and every run's release files.
 - Info page: what the scores mean, a method summary, data sources and attribution (Norwegian Register), how to cite, license.
@@ -82,5 +83,4 @@ tools/                 make_dummy_data.py, build_site_data.py (checks runs, copi
 - License for the code and for the data.
 - Custom domain.
 - Small-field pooling for percentiles: the report pools fields with fewer than 100 journals, the demo doesn't.
-- Whether the Leiden universe is in the first release (the paper calls it dated).
 - First real run from the back-end, including the `in_<u>` flags.

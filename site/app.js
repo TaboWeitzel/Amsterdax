@@ -10,14 +10,15 @@ const METRICS = {
   per_article: { short: 'ANS', name: 'Article Network Score', note: 'network share per article; article-weighted mean 1', digits: 3 },
 };
 const DEFAULTS = {
-  treatment: 'raw', universes: [], rankUniverse: 'n', metric: 'per_article', classification: 'oa_field',
+  treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'norwegian_field',
   minCoverage: 20, minYears: 0, topPercent: 100, query: '', fieldFilter: '', publisher: '', level: '',
-  member: '', oaOnly: false, poolOnly: false, details: false, sortKey: 'score:n:per_article', sortDirection: -1, page: 0,
+  onlyMembers: false, oaOnly: false, poolOnly: false, details: false, showPercentiles: false,
+  sortKey: 'score:per_article', sortDirection: -1, page: 0,
 };
-const SBE_PRESET = {
-  treatment: 'filtered', rankUniverse: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20,
-  minYears: 4, topPercent: 70, poolOnly: true, query: '', fieldFilter: '', publisher: '', level: '', member: '',
-  oaOnly: false, page: 0,
+const EXAMPLE_PRESET = {
+  treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20,
+  minYears: 4, topPercent: 70, showPercentiles: true, poolOnly: true, query: '', fieldFilter: '', publisher: '',
+  level: '', onlyMembers: false, oaOnly: false, page: 0,
 };
 
 let index;          // data/runs.json: the runs on this site, newest first
@@ -27,7 +28,7 @@ let year;           // the selected score year
 let rows = [];      // journals of the selected run and year
 let dataColumns = [];
 let state = { ...DEFAULTS };
-let ranks, ranksKey, visible, columns;
+let ranks, ranksKey, visible, columns, memberCount;
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const option = (value, label) => `<option value="${escape(value)}">${escape(label)}</option>`;
@@ -58,13 +59,9 @@ async function loadRun(name) {
   run = index.runs.find(r => r.run === name);
   manifest = await (await fetchOk(`data/${run.run}/manifest.json`)).json();
   const ids = universeIds();
-  state.universes = ids;
-  if (!ids.includes(state.rankUniverse)) state.rankUniverse = ids[0];
-  if (!ids.includes(state.member)) state.member = '';
-  $('universes').innerHTML = '<legend>Show score columns</legend>' + ids.map(u =>
-    `<label class="universe-chip"><input type="checkbox" value="${escape(u)}" checked><span class="letter ${escape(u)}">${escape(u.toUpperCase())}</span> ${escape(universeName(u))}</label>`).join('');
-  $('rank-universe').innerHTML = ids.map(u => option(u, `${universeName(u)} · ${u.toUpperCase()}`)).join('');
-  $('member').innerHTML = option('', 'Any universe') + ids.map(u => option(u, `In ${universeName(u)}`)).join('');
+  if (!ids.includes(state.universe)) state.universe = ids[0];
+  $('universe').innerHTML = '<legend>Universe</legend>' + ids.map(u =>
+    `<label class="universe-chip"><input type="radio" name="universe" value="${escape(u)}"> ${escape(universeName(u))}</label>`).join('');
   $('year').innerHTML = [...manifest.years].sort((a, b) => b - a).map(y => option(y, y)).join('');
   await loadYear(Math.max(...manifest.years));
 }
@@ -121,19 +118,19 @@ function getColumns() {
     { key: 'publications', label: 'Publications', title: `Articles and reviews ${year - 5}–${year - 1}${state.treatment === 'raw' ? '' : ' with at least one linked reference'}` },
     { key: 'citations', label: 'Citations', title: `Citations in ${year} to those publications, excluding journal self-citations` },
     { key: 'reference_coverage_pct', label: 'Ref. coverage', title: 'Share of publications with at least one linked OpenAlex reference' });
-  for (const u of state.universes) for (const [metric, m] of Object.entries(METRICS)) cols.push(
-    { key: `score:${u}:${metric}`, label: m.short, className: metric === 'share' ? 'group-start' : '', universe: u, title: `${universeName(u)} ${m.name} (${m.note})` });
-  cols.push(
+  for (const [metric, m] of Object.entries(METRICS)) cols.push(
+    { key: `score:${metric}`, label: m.short, className: metric === 'share' ? 'group-start' : '', score: true, title: `${m.name} in the ${universeName(state.universe)} universe (${m.note})` });
+  if (state.showPercentiles) cols.push(
     { key: 'fieldPct', label: 'Field pct.', className: 'group-start percentile-cell', title: 'Percentile within its field, after the coverage and history requirements' },
     { key: 'poolPct', label: `${METRICS[state.metric].short} pct.`, className: 'percentile-cell', title: 'Percentile among all retained journals; 100 is highest' });
   return cols;
 }
 
 function renderHead() {
-  const profileColumns = columns.filter(c => !c.universe && !c.key.endsWith('Pct')).length;
+  const profileColumns = columns.filter(c => !c.score && !c.key.endsWith('Pct')).length;
   const groups = `<th scope="colgroup" colspan="${profileColumns}" class="meta-group">Journal profile · ${year - 5}–${year - 1} publications · ${year} citations</th>` +
-    state.universes.map(u => `<th scope="colgroup" colspan="2" class="score-group ${escape(u)}">${escape(universeName(u))} · ${escape(u.toUpperCase())}</th>`).join('') +
-    `<th scope="colgroup" colspan="2" class="percentile-group">Ranking · ${escape(state.rankUniverse.toUpperCase())} ${METRICS[state.metric].short}</th>`;
+    `<th scope="colgroup" colspan="${Object.keys(METRICS).length}" class="score-group ${escape(state.universe)}">${escape(universeName(state.universe))}</th>` +
+    (state.showPercentiles ? `<th scope="colgroup" colspan="2" class="percentile-group">Percentiles · ${METRICS[state.metric].short}</th>` : '');
   const headers = columns.map(col => {
     const sorted = state.sortKey === col.key;
     const direction = state.sortDirection === 1 ? 'ascending' : 'descending';
@@ -163,10 +160,15 @@ function cell(row, col) {
       : col.key === 'fieldPct' ? `Compared with ${count(ranks.fieldCounts.get(id))} journals in this field` : `Compared with ${count(ranks.retained)} retained journals`;
     return `<td class="${col.className} ${value == null ? 'missing' : ''}" title="${escape(note)}">${fmt(value, 1)}</td>`;
   }
-  if (col.universe) {
-    const metric = col.key.split(':')[2];
+  if (col.score) {
+    const metric = col.key.split(':')[1];
+    if (!row[`in_${state.universe}`]) {
+      if (metric !== Object.keys(METRICS)[0]) return ''; // one note spans all score columns
+      const other = universeIds().find(u => u !== state.universe && row[`in_${u}`]);
+      const link = other ? ` <button type="button" class="text-button" data-universe="${escape(other)}">Show in ${escape(universeName(other))}</button>` : '';
+      return `<td colspan="${Object.keys(METRICS).length}" class="not-member-cell group-start">Not in the ${escape(universeName(state.universe))} universe.${link}</td>`;
+    }
     const classes = `metric-cell ${col.className || ''} ${metric === 'per_article' ? 'per-article-cell' : ''}`;
-    if (!row[`in_${col.universe}`]) return `<td class="${classes} not-member" title="Not in the ${escape(universeName(col.universe))} universe">·</td>`;
     return `<td class="${classes} ${value == null ? 'missing' : ''}" title="${value == null ? 'In this universe, but no score' : escape(value)}">${fmtScore(value, metric)}</td>`;
   }
   return `<td>${fmt(value)}</td>`;
@@ -174,11 +176,13 @@ function cell(row, col) {
 
 function render() {
   // Percentiles only depend on the ranking settings, so they are recomputed only when those change.
-  const key = JSON.stringify([state.treatment, state.rankUniverse, state.metric, state.classification, state.minCoverage, state.minYears, state.topPercent]);
+  const key = JSON.stringify([state.treatment, state.universe, state.metric, state.classification, state.minCoverage, state.minYears, state.topPercent]);
   if (key !== ranksKey) { ranks = E.rank(rows, state); ranksKey = key; }
   columns = getColumns();
   if (!columns.some(col => col.key === state.sortKey)) Object.assign(state, { sortKey: 'title', sortDirection: 1 });
-  visible = E.view(rows, state, ranks);
+  visible = E.view(rows, state.showPercentiles ? state : { ...state, poolOnly: false }, ranks);
+  memberCount = rows.filter(row => row[`in_${state.universe}`]).length;
+  $('percentile-settings').hidden = !state.showPercentiles;
   drawPage();
 }
 
@@ -189,7 +193,7 @@ function drawPage() {
   renderHead();
   $('table-body').innerHTML = shown.length ? shown.map(row => `<tr>${columns.map(col => cell(row, col)).join('')}</tr>`).join('')
     : `<tr><td colspan="${columns.length}" class="empty-cell">No journals match these choices. Try a broader search or reset the filters.</td></tr>`;
-  $('result-count').textContent = `${count(visible.length)} of ${count(rows.length)} journals`;
+  $('result-count').textContent = `${count(visible.length)} journals shown · ${count(memberCount)} of ${count(rows.length)} are in the ${universeName(state.universe)} universe`;
   $('sort-status').textContent = `Sorted by ${columns.find(c => c.key === state.sortKey)?.label || 'journal'} ${state.sortDirection === 1 ? '↑' : '↓'}`;
   $('pool-summary').innerHTML = `<strong>${count(ranks.qualified)}</strong> meet the requirements · <strong>${count(ranks.groups)}</strong> fields · ` +
     `<strong>${count(ranks.retained)}</strong> retained for the final percentile${ranks.retained ? '' : ' — broaden the requirements to define percentiles'}`;
@@ -202,10 +206,11 @@ function drawPage() {
 
 // ---- Controls ----
 
-const SELECTS = { 'rank-universe': 'rankUniverse', metric: 'metric', classification: 'classification', coverage: 'minCoverage',
-  'min-years': 'minYears', 'field-filter': 'fieldFilter', publisher: 'publisher', level: 'level', member: 'member' };
+const SELECTS = { metric: 'metric', classification: 'classification', coverage: 'minCoverage', 'min-years': 'minYears',
+  'field-filter': 'fieldFilter', publisher: 'publisher', level: 'level' };
 const NUMERIC = new Set(['minCoverage', 'minYears']);
-const CHECKBOXES = { 'oa-only': 'oaOnly', 'pool-only': 'poolOnly', 'details-columns': 'details' };
+const CHECKBOXES = { 'only-members': 'onlyMembers', 'oa-only': 'oaOnly', 'details-columns': 'details',
+  'show-percentiles': 'showPercentiles', 'pool-only': 'poolOnly' };
 
 function setChoices(id, values, label) {
   const unique = [...new Set(values.filter(v => v != null && v !== ''))].sort((a, b) => E.compareText(String(a), String(b)));
@@ -227,7 +232,7 @@ function syncControls() {
   $('search').value = state.query;
   $('top-percent').value = state.topPercent;
   $('include-zero').checked = state.treatment === 'raw';
-  $('universes').querySelectorAll('input').forEach(box => { box.checked = state.universes.includes(box.value); });
+  $('universe').querySelectorAll('input').forEach(radio => { radio.checked = radio.value === state.universe; });
 }
 
 function showJournal(id) {
@@ -243,8 +248,9 @@ function showJournal(id) {
     ['Open access journal', row.is_open_access == null ? 'Unknown' : row.is_open_access ? 'Yes' : 'No'],
     ['Publication years', `${fmt(row.active_years)} of 5 with eligible output`],
     ['Reference coverage', E.isNumber(row.reference_coverage_pct) ? `${fmt(row.reference_coverage_pct, 2)}%` : 'Unavailable'],
-    ['Final percentile', ranks.poolRanks.has(id) ? `${fmt(ranks.poolRanks.get(id), 1)} · among ${count(ranks.retained)} journals` : escape(ranks.reasons.get(id) || 'Not eligible')],
   ];
+  if (state.showPercentiles) details.push(['Final percentile', ranks.poolRanks.has(id)
+    ? `${fmt(ranks.poolRanks.get(id), 1)} · among ${count(ranks.retained)} journals` : escape(ranks.reasons.get(id) || 'Not eligible')]);
   const scoreRow = u => row[`in_${u}`]
     ? Object.keys(METRICS).map(metric => `<td>${fmtScore(E.score(row, state, u, metric), metric)}</td>`).join('')
     : '<td colspan="2" class="not-member">Not in this universe</td>';
@@ -279,19 +285,21 @@ function csvHeader(key) {
   if (key === 'fieldPct') return 'field_percentile';
   if (key === 'poolPct') return 'pool_percentile';
   if (key === 'publications' || key === 'citations') return `${key}_${state.treatment}`;
-  if (key.startsWith('score:')) { const [, u, metric] = key.split(':'); return `${metric}_${u}_${state.treatment}`; }
+  if (key.startsWith('score:')) return `${key.split(':')[1]}_${state.universe}_${state.treatment}`;
   return key;
 }
 
 function downloadView() {
-  const settings = {
-    run: run.run, score_year: year, treatment: state.treatment, ranking_universe: state.rankUniverse, ranking_indicator: state.metric,
-    classification: state.classification, coverage_strictly_above_pct: state.minCoverage < 0 ? 'none' : state.minCoverage,
+  const settings = { run: run.run, score_year: year, universe: state.universe, treatment: state.treatment, classification: state.classification };
+  if (state.showPercentiles) Object.assign(settings, {
+    ranking_indicator: state.metric, coverage_strictly_above_pct: state.minCoverage < 0 ? 'none' : state.minCoverage,
     minimum_output_years: state.minYears, retained_top_pct_per_field: state.topPercent, final_pool_size: ranks.retained,
-  };
-  const header = ['openalex_id', ...columns.map(c => csvHeader(c.key)), 'percentile_exclusion_reason', ...Object.keys(settings)];
-  const lines = visible.map(row => [row.openalex_id, ...columns.map(c => E.columnValue(row, state, ranks, c.key)),
-    ranks.reasons.get(row.openalex_id) || '', ...Object.values(settings)]);
+  });
+  const reason = row => (state.showPercentiles ? [ranks.reasons.get(row.openalex_id) || ''] : []);
+  const header = ['openalex_id', `in_${state.universe}`, ...columns.map(c => csvHeader(c.key)),
+    ...(state.showPercentiles ? ['percentile_exclusion_reason'] : []), ...Object.keys(settings)];
+  const lines = visible.map(row => [row.openalex_id, row[`in_${state.universe}`],
+    ...columns.map(c => E.columnValue(row, state, ranks, c.key)), ...reason(row), ...Object.values(settings)]);
   saveCsv(`amsterdax-${run.run}-${year}-${state.treatment}-view.csv`, header, lines);
 }
 
@@ -319,15 +327,12 @@ $('top-percent').addEventListener('change', event => {
   event.target.value = topPercent;
   update({ topPercent });
 });
-$('universes').addEventListener('change', () => {
-  const checked = [...$('universes').querySelectorAll('input:checked')].map(box => box.value);
-  update({ universes: universeIds().filter(u => checked.includes(u)) });
-});
-$('more-filters').addEventListener('click', () => {
-  const open = $('extra-filters').hidden;
-  $('extra-filters').hidden = !open;
-  $('more-filters').setAttribute('aria-expanded', String(open));
-  $('more-filters').textContent = open ? 'Fewer filters −' : 'More filters +';
+$('universe').addEventListener('change', event => update({ universe: event.target.value }));
+$('settings-toggle').addEventListener('click', () => {
+  const open = $('settings').hidden;
+  $('settings').hidden = !open;
+  $('settings-toggle').setAttribute('aria-expanded', String(open));
+  $('settings-toggle').textContent = open ? 'Settings −' : 'Settings +';
 });
 $('table-head').addEventListener('click', event => {
   const key = event.target.closest('[data-sort]')?.dataset.sort;
@@ -337,6 +342,8 @@ $('table-head').addEventListener('click', event => {
   $('table-head').querySelector(`[data-sort="${key}"]`)?.focus({ preventScroll: true });
 });
 $('table-body').addEventListener('click', event => {
+  const universe = event.target.closest('[data-universe]')?.dataset.universe;
+  if (universe) { update({ universe }); syncControls(); return; }
   const id = event.target.closest('[data-journal]')?.dataset.journal;
   if (id) showJournal(id);
 });
@@ -345,12 +352,13 @@ $('next').addEventListener('click', () => { state.page++; drawPage(); });
 $('download-view').addEventListener('click', downloadView);
 $('download-year').addEventListener('click', event => { if (event.target.id === 'download-year-csv') downloadYear(); });
 $('close-dialog').addEventListener('click', () => $('journal-dialog').close());
-$('sbe-preset').addEventListener('click', () => {
-  Object.assign(state, SBE_PRESET);
+$('example-preset').addEventListener('click', () => {
+  Object.assign(state, EXAMPLE_PRESET);
   fillFilters(); syncControls(); render();
 });
 $('reset').addEventListener('click', () => {
-  state = { ...DEFAULTS, universes: universeIds(), rankUniverse: universeIds().includes('n') ? 'n' : universeIds()[0] };
+  state = { ...DEFAULTS };
+  if (!universeIds().includes(state.universe)) state.universe = universeIds()[0];
   fillFilters(); syncControls(); render();
 });
 
