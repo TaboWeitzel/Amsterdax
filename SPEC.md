@@ -63,7 +63,7 @@ Based on the existing demo prototype.
 - Journals outside the selected universe stay in the table, listed last, with a link to switch to a universe that contains them. A setting hides them. "Not in this universe" is shown differently from "in this universe, but no score".
 - Defaults: Filtered scores (a setting switches to Raw) and Norwegian fields as field classification.
 - Percentiles are off by default. When switched on, they are computed in the browser within the selected universe, from the chosen indicator (JNS or ANS), field classification, minimum reference coverage, minimum active years and top % kept per field. An example preset fills these in. Ties get the highest shared rank.
-- Journal detail view, with a link to OpenAlex.
+- Journal detail view: metadata, a link to OpenAlex, the Norwegian level linked to the register's explanation of levels, and a table with the journal's scores in every score year of the selected run (selected universe and Raw/Filtered). The other years are fetched on demand, one small part of each file.
 - Downloads: the current view as CSV, a full year as CSV or Parquet, and every run's release files.
 - Info page: what the scores mean, a method summary, data sources and attribution (Norwegian Register), how to cite, license.
 - Dummy data runs show a clear banner.
@@ -73,7 +73,7 @@ Based on the existing demo prototype.
 ```
 site/                  the website (data/ is filled in by the deploy workflow)
 tests/                 tests for the ranking logic
-tools/                 make_dummy_data.py, build_site_data.py (checks runs, copies them into site/data/)
+tools/                 make_dummy_data.py, build_site_data.py (checks runs, copies them into site/data/ sorted by journal in small row groups)
 .github/workflows/     deploy workflow
 ```
 

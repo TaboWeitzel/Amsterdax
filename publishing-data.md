@@ -19,7 +19,8 @@ Each pipeline run is published as a GitHub Release. The website updates itself.
 The website shows the new run within a few minutes. To follow progress, open the **Actions** tab. Two runs appear one after the other: **Deploy website** checks the data and builds the site, then **pages build and deployment** puts it online.
 
 - Green check on both: the new run is online. A *cancelled* **pages build and deployment** can be ignored: a newer one replaced it.
-- Red cross: the files failed a check and nothing was published. The previous version stays online, and GitHub sends you an email with the reason.
+- Red cross on **pages build and deployment**: usually a temporary problem at GitHub. Open the run and click **Re-run failed jobs**.
+- Red cross on **Deploy website**: the files failed a check and nothing was published. The previous version stays online, and GitHub sends you an email with the reason.
 
 ## Fixing mistakes
 

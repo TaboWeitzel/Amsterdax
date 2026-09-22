@@ -23,3 +23,6 @@
 .hint{font-size:11px;color:var(--muted);margin:6px 0 0 24px}
 #percentile-settings .reference-controls{grid-template-columns:repeat(4,1fr) auto;align-items:end}
 .not-member-cell{text-align:left;white-space:normal;color:var(--muted);min-width:190px}
+dialog h3{font-size:12px;margin:24px 0 10px}
+dialog .current-year th,dialog .current-year td{background:var(--soft);font-weight:600}
+dialog th,dialog td{padding:8px 10px}

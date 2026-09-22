@@ -13,6 +13,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 
 SITE_DATA = Path(__file__).resolve().parent.parent / "site" / "data"
+ROWS_PER_GROUP = 4096  # small, sorted row groups let the website fetch one journal without the whole file
 COLUMNS = ["openalex_id", "title", "publisher", "issn_l", "issns", "oa_domain", "oa_field", "norwegian_area",
            "norwegian_field", "norwegian_level", "is_open_access", "score_year", "publications_raw",
            "publications_filtered", "citations_raw", "citations_filtered", "reference_coverage_pct", "active_years"]
@@ -41,13 +42,23 @@ def check_run(folder):
     return manifest
 
 
+def copy_run(folder, manifest):
+    """Copy a run into the site, with each year sorted by journal in small row groups."""
+    target = SITE_DATA / folder.name
+    target.mkdir()
+    shutil.copy2(folder / "manifest.json", target / "manifest.json")
+    for year in manifest["years"]:
+        table = pq.read_table(folder / f"scores_{year}.parquet").sort_by("openalex_id")
+        pq.write_table(table, target / f"scores_{year}.parquet", row_group_size=ROWS_PER_GROUP)
+
+
 def main(runs_folder, releases_url=None):
     shutil.rmtree(SITE_DATA, ignore_errors=True)
     SITE_DATA.mkdir(parents=True)
     runs = []
     for folder in sorted(p for p in Path(runs_folder).iterdir() if p.is_dir()):
         manifest = check_run(folder)
-        shutil.copytree(folder, SITE_DATA / folder.name)
+        copy_run(folder, manifest)
         runs.append({"run": folder.name, "created": manifest["created"], "dummy": manifest.get("dummy", False),
                      "release_url": f"{releases_url}/tag/{folder.name}" if releases_url else None})
     runs.sort(key=lambda r: r["created"], reverse=True)

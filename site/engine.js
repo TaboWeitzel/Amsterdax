@@ -10,10 +10,16 @@ export const field = (row, state) => row[state.classification] || 'Unclassified'
 
 export const compareText = new Intl.Collator('en').compare;
 
-// Run once per loaded year: converts 64-bit integers (read as BigInt) to numbers and stores each
-// row's alphabetical position, so sorting never has to compare titles as text (slow for 100k rows).
+// 64-bit integers are read as BigInt; the table works with ordinary numbers.
+export function toNumbers(row) {
+  for (const key in row) if (typeof row[key] === 'bigint') row[key] = Number(row[key]);
+  return row;
+}
+
+// Run once per loaded year: converts integers and stores each row's alphabetical position,
+// so sorting never has to compare titles as text (slow for 100k rows).
 export function prepareRows(rows) {
-  for (const row of rows) for (const key in row) if (typeof row[key] === 'bigint') row[key] = Number(row[key]);
+  rows.forEach(toNumbers);
   [...rows].sort((a, b) => compareText(a.title, b.title)).forEach((row, i) => { row.titleOrder = i; });
   return rows;
 }
