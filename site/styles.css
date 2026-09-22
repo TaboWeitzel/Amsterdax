@@ -34,3 +34,13 @@ dialog th,dialog td{padding:8px 10px}
 .check-group legend{font-size:11px;font-weight:600;padding:0;margin-bottom:9px}
 .downloads .settings-row{margin:12px 0 4px}
 .downloads .hint{margin:8px 0 0}
+.nav{margin-left:auto;display:flex;gap:22px;font-size:12px}
+.nav a{text-decoration:none;color:var(--muted)}
+.nav a:hover,.nav a[aria-current=page]{color:var(--teal);font-weight:600}
+.about{max-width:820px}
+.about .subtitle{margin-bottom:26px;line-height:1.6}
+.about .panel{padding:4px 26px 8px;margin-bottom:16px}
+.about h2{font-size:15px;margin:20px 0 10px}
+.about p,.about li{font-size:13px;line-height:1.75;color:#34464f}
+.about li{margin-bottom:6px}
+.about .citation{border-left:3px solid var(--teal);padding:4px 0 4px 14px}
