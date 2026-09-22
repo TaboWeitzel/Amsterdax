@@ -4,6 +4,13 @@ import * as E from './engine.js';
 
 const $ = id => document.getElementById(id);
 const PAGE_SIZE = 25;
+const RUN_HELP = 'Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. ' +
+  'OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. ' +
+  'Use an older run to reproduce earlier results, and the latest run for the most complete data.';
+// Columns in every downloaded CSV; the chosen universes add their own columns.
+const BASE_COLUMNS = ['openalex_id', 'title', 'publisher', 'issn_l', 'issns', 'oa_domain', 'oa_field', 'norwegian_area',
+  'norwegian_field', 'norwegian_level', 'is_open_access', 'score_year', 'publications_raw', 'publications_filtered',
+  'citations_raw', 'citations_filtered', 'reference_coverage_pct', 'active_years'];
 const LEVELS_URL = 'https://kanalregister.hkdir.no/en/informasjonsartikler/levels-and-changes-in-levels';
 // The only place where the scores are named; the keys match the data columns (see SPEC.md).
 const METRICS = {
@@ -27,9 +34,9 @@ let run;            // the selected run
 let manifest;       // its manifest.json
 let year;           // the selected score year
 let rows = [];      // journals of the selected run and year
-let dataColumns = [];
 let state = { ...DEFAULTS };
 let ranks, ranksKey, visible, columns, memberCount;
+const manifests = new Map(); // manifest.json per run
 const yearFiles = new Map(); // score files of other years, opened on demand for the journal details
 let historyRequest = 0;
 
@@ -58,9 +65,14 @@ function showError(error) {
 
 // ---- Loading data ----
 
+const runManifest = name => {
+  if (!manifests.has(name)) manifests.set(name, fetchOk(`data/${name}/manifest.json`).then(response => response.json()));
+  return manifests.get(name);
+};
+
 async function loadRun(name) {
   run = index.runs.find(r => r.run === name);
-  manifest = await (await fetchOk(`data/${run.run}/manifest.json`)).json();
+  manifest = await runManifest(run.run);
   const ids = universeIds();
   if (!ids.includes(state.universe)) state.universe = ids[0];
   $('universe').innerHTML = '<legend>Universe</legend>' + ids.map(u =>
@@ -74,7 +86,6 @@ async function loadYear(newYear) {
   $('notice').textContent = `Loading score year ${newYear}…`;
   const buffer = await (await fetchOk(`data/${run.run}/scores_${newYear}.parquet`)).arrayBuffer();
   const data = await parquetReadObjects({ file: buffer });
-  dataColumns = data.length ? Object.keys(data[0]) : [];
   year = newYear;
   rows = E.prepareRows(data);
   ranksKey = null;
@@ -83,7 +94,6 @@ async function loadYear(newYear) {
   syncControls();
   render();
   showRunInfo();
-  showDownloads();
 }
 
 function showRunInfo() {
@@ -94,15 +104,6 @@ function showRunInfo() {
     : `Run ${run.run} · OpenAlex snapshot ${manifest.openalex_snapshot} · Norwegian Register snapshot ${manifest.norwegian_register_snapshot}`;
   $('provenance').textContent = `Run ${run.run} was created on ${manifest.created}. Norwegian fields and levels come from the ` +
     'Norwegian Register for Scientific Journals, Series and Publishers; journal metadata and citations from OpenAlex.';
-}
-
-function showDownloads() {
-  const file = `data/${run.run}/scores_${year}.parquet`;
-  $('download-year').innerHTML = `Score year ${year} of run ${escape(run.run)}, all ${count(rows.length)} journals: ` +
-    `<a href="${escape(file)}" download>Parquet</a> · <button type="button" class="text-button" id="download-year-csv">CSV</button>`;
-  $('download-runs').innerHTML = index.runs.map(r => `<li>Run ${escape(r.run)}${r.dummy ? ' (dummy data)' : ''}, created ${escape(r.created)}: ` +
-    (r.release_url ? `<a href="${escape(r.release_url)}">all files</a>` : 'files not published') + '</li>').join('') +
-    (index.releases_url ? `<li>Older runs: <a href="${escape(index.releases_url)}">all releases</a></li>` : '');
 }
 
 // ---- Table ----
@@ -310,14 +311,17 @@ async function showHistory(id) {
 
 // ---- Downloads ----
 
-function saveCsv(filename, header, lines) {
-  const cell = value => {
-    let text = value == null ? '' : String(value);
-    if (typeof value === 'string' && /^[=+@\-\t\r]/.test(text)) text = "'" + text; // keep spreadsheet formulas as plain text
-    return '"' + text.replace(/"/g, '""') + '"';
-  };
-  const csv = '﻿' + [header, ...lines].map(line => line.map(cell).join(',')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+function csvCell(value) {
+  if (value == null) return '';
+  if (typeof value !== 'string') return String(value); // numbers and booleans need no quotes
+  const text = /^[=+@\-\t\r]/.test(value) ? "'" + value : value; // keep spreadsheet formulas as plain text
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+const csvLines = lines => lines.map(line => line.map(csvCell).join(',')).join('\r\n');
+
+// Saves a CSV from text parts; the byte order mark makes Excel read the file as UTF-8.
+function saveCsv(filename, parts) {
+  const url = URL.createObjectURL(new Blob(['\ufeff', ...parts], { type: 'text/csv;charset=utf-8' }));
   const link = Object.assign(document.createElement('a'), { href: url, download: filename });
   document.body.append(link);
   link.click();
@@ -345,11 +349,48 @@ function downloadView() {
     ...(state.showPercentiles ? ['percentile_exclusion_reason'] : []), ...Object.keys(settings)];
   const lines = visible.map(row => [row.openalex_id, row[`in_${state.universe}`],
     ...columns.map(c => E.columnValue(row, state, ranks, c.key)), ...reason(row), ...Object.values(settings)]);
-  saveCsv(`amsterdax-${run.run}-${year}-${state.treatment}-view.csv`, header, lines);
+  saveCsv(`amsterdax-${run.run}-${year}-${state.treatment}-view.csv`, [csvLines([header, ...lines])]);
 }
 
-function downloadYear() {
-  saveCsv(`amsterdax-${run.run}-${year}.csv`, dataColumns, rows.map(row => dataColumns.map(key => row[key])));
+async function showDownloadChoices(name) {
+  const m = await runManifest(name), years = [...m.years].sort((a, b) => b - a);
+  const box = (value, label) => `<label class="check-line"><input type="checkbox" value="${escape(value)}" checked>${escape(label)}</label>`;
+  $('download-years').innerHTML = '<legend>Score years</legend>' + years.map(y => box(y, y)).join('');
+  $('download-universes').innerHTML = '<legend>Universes</legend>' + Object.entries(m.universes).map(([u, label]) => box(u, label)).join('');
+  const release = index.runs.find(r => r.run === name)?.release_url;
+  $('download-files').innerHTML = `Complete files of run ${escape(name)}, all columns (Parquet): ` +
+    years.map(y => `<a href="data/${escape(name)}/scores_${y}.parquet" download>${y}</a>`).join(' · ') +
+    (release ? ` · <a href="${escape(release)}">release page</a>` : '') +
+    (index.releases_url ? `. Runs older than the ones listed here: <a href="${escape(index.releases_url)}">all releases</a>.` : '.');
+}
+
+// One CSV with the chosen years and universes, built one year at a time to limit memory use.
+async function downloadSelection() {
+  const name = $('download-run').value;
+  const checked = id => [...$(id).querySelectorAll('input:checked')].map(input => input.value);
+  const years = checked('download-years').map(Number), universes = checked('download-universes');
+  const status = text => { $('download-status').textContent = text; };
+  if (!years.length || !universes.length) return status('Choose at least one score year and one universe.');
+  const columns = [...BASE_COLUMNS, ...universes.flatMap(u => [`in_${u}`,
+    ...Object.keys(METRICS).flatMap(metric => [`${metric}_${u}_raw`, `${metric}_${u}_filtered`])])];
+  const parts = [csvLines([columns])];
+  let total = 0;
+  $('download-build').disabled = true;
+  try {
+    for (const [i, y] of years.entries()) {
+      status(`Preparing score year ${y} (${i + 1} of ${years.length})…`);
+      const buffer = await (await fetchOk(`data/${name}/scores_${y}.parquet`)).arrayBuffer();
+      const kept = (await parquetReadObjects({ file: buffer, columns })).filter(row => universes.some(u => row[`in_${u}`]));
+      if (kept.length) parts.push('\r\n', csvLines(kept.map(row => columns.map(column => row[column]))));
+      total += kept.length;
+    }
+    saveCsv(`amsterdax-${name}-${years.join('-')}-${universes.join('-')}.csv`, parts);
+    status(`Saved ${count(total)} rows (${years.length} score years × journals in ${universes.length === 1 ? 'the chosen universe' : 'at least one chosen universe'}).`);
+  } catch (error) {
+    status(`The download could not be prepared (${error.message}).`);
+  } finally {
+    $('download-build').disabled = false;
+  }
 }
 
 // ---- Events ----
@@ -395,7 +436,8 @@ $('table-body').addEventListener('click', event => {
 $('previous').addEventListener('click', () => { state.page--; drawPage(); });
 $('next').addEventListener('click', () => { state.page++; drawPage(); });
 $('download-view').addEventListener('click', downloadView);
-$('download-year').addEventListener('click', event => { if (event.target.id === 'download-year-csv') downloadYear(); });
+$('download-run').addEventListener('change', event => showDownloadChoices(event.target.value).catch(showError));
+$('download-build').addEventListener('click', downloadSelection);
 $('close-dialog').addEventListener('click', () => $('journal-dialog').close());
 $('example-preset').addEventListener('click', () => {
   Object.assign(state, EXAMPLE_PRESET);
@@ -409,12 +451,15 @@ $('reset').addEventListener('click', () => {
 
 // ---- Start ----
 
+document.querySelectorAll('.help-text').forEach(element => { element.textContent = RUN_HELP; });
 $('metric').innerHTML = Object.entries(METRICS).map(([metric, m]) => option(metric, `${m.short} · ${m.name}`)).join('');
 try {
   index = await (await fetchOk('data/runs.json')).json();
   if (!index.runs.length) throw new Error('no data runs published yet');
-  $('run').innerHTML = index.runs.map(r => option(r.run, r.run + (r.dummy ? ' (dummy)' : ''))).join('');
-  await loadRun(index.runs[0].run);
+  const runOptions = index.runs.map(r => option(r.run, r.run + (r.dummy ? ' (dummy)' : ''))).join('');
+  $('run').innerHTML = runOptions;
+  $('download-run').innerHTML = runOptions;
+  await Promise.all([loadRun(index.runs[0].run), showDownloadChoices(index.runs[0].run)]);
 } catch (error) {
   showError(error);
 }
