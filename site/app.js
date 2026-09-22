@@ -1,5 +1,5 @@
 // Amsterdax website: loads a data run and draws the journal table. The ranking logic is in engine.js.
-import { asyncBufferFromUrl, parquetMetadataAsync, parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.1/+esm';
+import { parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.1/+esm';
 import * as E from './engine.js';
 
 const $ = id => document.getElementById(id);
@@ -37,7 +37,7 @@ let rows = [];      // journals of the selected run and year
 let state = { ...DEFAULTS };
 let ranks, ranksKey, visible, columns, memberCount;
 const manifests = new Map(); // manifest.json per run
-const yearFiles = new Map(); // score files of other years, opened on demand for the journal details
+const historyFiles = new Map(); // history files, downloaded on demand for the journal details
 let historyRequest = 0;
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -265,27 +265,15 @@ function showJournal(id) {
   showHistory(id);
 }
 
-function yearFile(y) {
-  const url = `data/${run.run}/scores_${y}.parquet`;
-  if (!yearFiles.has(url)) yearFiles.set(url, (async () => {
-    const file = await asyncBufferFromUrl({ url });
-    return { file, metadata: await parquetMetadataAsync(file, { initialFetchSize: 1 << 17 }) }; // index is ~100 KB
-  })());
-  return yearFiles.get(url);
-}
-
-// The journal's row in every score year of the run. The site's files are sorted by journal in small
-// row groups (see tools/build_site_data.py), so only a small part of each file is downloaded.
+// The journal's row in every score year of the run. tools/build_site_data.py splits all years into
+// 100 small history files by the last two digits of the journal ID, so only one small file is downloaded.
 async function journalHistory(id) {
-  const u = state.universe, t = state.treatment;
-  const columns = ['openalex_id', 'norwegian_level', `publications_${t}`, 'reference_coverage_pct', `in_${u}`,
-    ...Object.keys(METRICS).map(metric => `${metric}_${u}_${t}`)];
-  return Promise.all([...manifest.years].sort((a, b) => b - a).map(async y => {
-    if (y === year) return [y, rows.find(r => r.openalex_id === id)];
-    const { file, metadata } = await yearFile(y);
-    const [found] = await parquetReadObjects({ file, metadata, columns, filter: { openalex_id: { $eq: id } } });
-    return [y, found ? E.toNumbers(found) : null];
-  }));
+  const url = `data/${run.run}/history/${id.slice(-2)}.parquet`;
+  if (!historyFiles.has(url)) historyFiles.set(url, fetchOk(url).then(response => response.arrayBuffer())
+    .catch(error => { historyFiles.delete(url); throw error; })); // a failed download is retried next time
+  const found = await parquetReadObjects({ file: await historyFiles.get(url), filter: { openalex_id: { $eq: id } } });
+  const byYear = new Map(found.map(row => [Number(row.score_year), E.toNumbers(row)]));
+  return [...manifest.years].sort((a, b) => b - a).map(y => [y, byYear.get(y) ?? null]);
 }
 
 async function showHistory(id) {
