@@ -10,6 +10,5 @@ site/data/
 
 # Local only
 working-notes.md
-website-demo/
 .claude/
 __pycache__/
