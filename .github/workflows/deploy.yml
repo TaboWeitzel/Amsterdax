@@ -55,6 +55,14 @@ jobs:
           pip install pyarrow
           python tools/build_site_data.py runs "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases"
 
+      - name: Add a version to the code links, so browsers never mix old and new files
+        working-directory: site
+        run: |
+          v="${GITHUB_SHA::7}"
+          sed -i "s/href=\"styles.css\"/href=\"styles.css?v=$v\"/; s/src=\"app.js\"/src=\"app.js?v=$v\"/" index.html about.html
+          sed -i "s|from './engine.js'|from './engine.js?v=$v'|" app.js
+          grep -q "app.js?v=$v" index.html && grep -q "engine.js?v=$v" app.js
+
       - name: Publish the site to the gh-pages branch
         working-directory: site
         env:
