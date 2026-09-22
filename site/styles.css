@@ -13,7 +13,7 @@
 .downloads h2{font-size:13px;margin:0 0 6px;font-weight:650}
 .downloads p,.downloads ul{margin:0;color:var(--muted)}
 .downloads ul{padding-left:18px}
-.settings-button{margin-left:auto;align-self:end}
+.settings-button{margin-left:auto;align-self:end;height:36px;min-width:150px;font-size:13px;font-weight:600;color:var(--teal);border-color:var(--teal)}
 .settings{margin:14px 0 20px;padding:4px 22px 18px}
 .settings-group{padding-top:16px}
 .settings-group+.settings-group{border-top:1px solid #e7ece8;margin-top:16px}
