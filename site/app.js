@@ -15,7 +15,7 @@ const METRICS = {
   per_article: { short: 'ANS', name: 'Article Network Score', note: 'network share per article; article-weighted mean 1', digits: 3 },
 };
 const DEFAULTS = {
-  treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'norwegian_field',
+  treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'oa_field',
   minCoverage: 20, minYears: 0, topPercent: 100, query: '', fieldFilter: '', publisher: '', level: '',
   onlyMembers: false, oaOnly: false, poolOnly: false, showPercentiles: false,
   sortKey: 'score:per_article', sortDirection: -1, page: 0,
