@@ -9,7 +9,7 @@ The back-end is a separate project (currently run on a laptop, possibly Docker/c
 - Static website: plain HTML, CSS and JavaScript, no framework, no build step. Everything runs in the visitor's browser.
 - Hosted free on GitHub Pages, later with a custom domain.
 - Each data run is published as a GitHub Release of this repository. The releases are the permanent archive.
-- A deploy workflow (GitHub Actions) runs on every new release and on demand. It checks the files, copies the 3 most recent runs into the site (older runs stay downloadable as releases) and pushes the finished site as a single commit to the `gh-pages` branch, which GitHub Pages serves. See `publishing-data.md`.
+- A deploy workflow (GitHub Actions) runs on every new release and on demand. It checks the files, copies the 4 most recent runs into the site (older runs stay downloadable as releases) and pushes the finished site as a single commit to the `gh-pages` branch, which GitHub Pages serves. See `publishing-data.md`.
 - No account or repository names in the code, because the repository will change owner.
 
 ## Data layout
@@ -64,7 +64,7 @@ Based on the existing demo prototype.
 - Defaults: Filtered scores (a setting switches to Raw) and Norwegian fields as field classification.
 - Percentiles are off by default. When switched on, they are computed in the browser within the selected universe, from the chosen indicator (JNS or ANS), field classification, minimum reference coverage, minimum active years and top % kept per field. An example preset fills these in. Ties get the highest shared rank.
 - Journal detail view: metadata, a link to OpenAlex, the Norwegian level linked to the register's explanation of levels, and a table with the journal's scores in every score year of the selected run (selected universe and Raw/Filtered). The other years are fetched on demand, one small part of each file.
-- Downloads: the current view as CSV, a full year as CSV or Parquet, and every run's release files.
+- Downloads: the current view as CSV; one CSV built from a chosen run (any run on the site), score years and universes (journals in at least one chosen universe, Raw and Filtered columns); complete Parquet files per year; older runs via the releases page. A "?" next to each run selector explains how runs differ.
 - Info page: what the scores mean, a method summary, data sources and attribution (Norwegian Register), how to cite, license.
 - Dummy data runs show a clear banner.
 

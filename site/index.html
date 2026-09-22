@@ -23,7 +23,7 @@
     <div class="notice" id="notice" role="status">Loading the data…</div>
 
     <section class="score-controls panel" aria-label="Choose the scores to show">
-      <label class="control run-control">Data run<select id="run"></select></label>
+      <div class="control run-control"><span class="label-line"><label for="run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip"></span></span></span><select id="run"></select></div>
       <label class="control year-control">Score year<select id="year"></select></label>
       <fieldset class="universe-control" id="universe"><legend>Universe</legend></fieldset>
       <button type="button" class="quiet-button settings-button" id="settings-toggle" aria-expanded="false" aria-controls="settings">Settings <span aria-hidden="true">+</span></button>
@@ -79,8 +79,14 @@
 
     <section class="downloads panel" aria-labelledby="downloads-title">
       <h2 id="downloads-title">Download the data</h2>
-      <p id="download-year"></p>
-      <ul id="download-runs"></ul>
+      <div class="settings-row">
+        <div class="control run-control"><span class="label-line"><label for="download-run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip"></span></span></span><select id="download-run"></select></div>
+        <fieldset class="check-group" id="download-years"><legend>Score years</legend></fieldset>
+        <fieldset class="check-group" id="download-universes"><legend>Universes</legend></fieldset>
+        <button type="button" class="quiet-button" id="download-build">Download CSV <span aria-hidden="true">↓</span></button>
+      </div>
+      <p class="hint" id="download-status">One CSV with the chosen score years, for all journals in at least one of the chosen universes.</p>
+      <p id="download-files"></p>
     </section>
 
     <details class="methodology panel" id="methodology">

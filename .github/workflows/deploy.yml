@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RUNS_ON_SITE: 3  # the most recent runs are viewable on the site; all runs stay downloadable as releases
+  RUNS_ON_SITE: 4  # the most recent runs are viewable on the site; all runs stay downloadable as releases
 
 jobs:
   deploy:
