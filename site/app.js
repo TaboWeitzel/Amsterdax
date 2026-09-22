@@ -14,10 +14,6 @@ const METRICS = {
   share: { short: 'JNS', name: 'Journal Network Share', note: 'share of citation-network prestige; sums to 100 over the universe', digits: 5 },
   per_article: { short: 'ANS', name: 'Article Network Score', note: 'network share per article; article-weighted mean 1', digits: 3 },
 };
-// Norwegian fields and areas exist only for journals in the Norwegian Register, so they are offered only in
-// that universe; elsewhere the matching OpenAlex level is used.
-const NORWEGIAN_UNIVERSE = 'n';
-const OPENALEX_EQUIVALENT = { norwegian_field: 'oa_field', norwegian_area: 'oa_domain' };
 const DEFAULTS = {
   treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'oa_field',
   minCoverage: 20, minYears: 0, topPercent: 100, query: '', fieldFilter: '', publisher: '', level: '',
@@ -227,17 +223,6 @@ function syncControls() {
   $('top-percent').value = state.topPercent;
   $('include-zero').checked = state.treatment === 'raw';
   $('universe').querySelectorAll('input').forEach(radio => { radio.checked = radio.value === state.universe; });
-  for (const option of $('classification').options) {
-    option.hidden = option.disabled = option.value in OPENALEX_EQUIVALENT && state.universe !== NORWEGIAN_UNIVERSE; // Safari ignores hidden
-  }
-}
-
-function setUniverse(universe) {
-  const classification = universe === NORWEGIAN_UNIVERSE ? state.classification
-    : OPENALEX_EQUIVALENT[state.classification] ?? state.classification;
-  if (classification !== state.classification) Object.assign(state, { classification, fieldFilter: '' });
-  Object.assign(state, { universe, page: 0 });
-  fillFilters(); syncControls(); render();
 }
 
 function showJournal(id) {
@@ -402,7 +387,7 @@ $('top-percent').addEventListener('change', event => {
   event.target.value = topPercent;
   update({ topPercent });
 });
-$('universe').addEventListener('change', event => setUniverse(event.target.value));
+$('universe').addEventListener('change', event => update({ universe: event.target.value }));
 $('settings-toggle').addEventListener('click', () => {
   const open = $('settings').hidden;
   $('settings').hidden = !open;
@@ -418,7 +403,7 @@ $('table-head').addEventListener('click', event => {
 });
 $('table-body').addEventListener('click', event => {
   const universe = event.target.closest('[data-universe]')?.dataset.universe;
-  if (universe) return setUniverse(universe);
+  if (universe) { update({ universe }); syncControls(); return; }
   const id = event.target.closest('[data-journal]')?.dataset.journal;
   if (id) showJournal(id);
 });
