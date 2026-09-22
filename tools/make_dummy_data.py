@@ -13,8 +13,8 @@ import pandas as pd
 RUN = "2026-Q3-dummy"
 YEARS = [2022, 2023, 2024, 2025]
 N_JOURNALS = 110_000
-UNIVERSES = {"n": "Norwegian Register", "l": "Leiden (CWTS)", "oa": "OpenAlex"}
-SHARE_IN_UNIVERSE = {"n": 0.20, "l": 0.15, "oa": 0.99}
+UNIVERSES = {"n": "Norwegian Register", "oa": "OpenAlex"}
+SHARE_IN_UNIVERSE = {"n": 0.20, "oa": 0.99}
 
 OA_FIELDS = {
     "Physical Sciences": ["Chemical Engineering", "Chemistry", "Computer Science", "Earth and Planetary Sciences",

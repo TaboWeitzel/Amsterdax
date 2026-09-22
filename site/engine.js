@@ -3,7 +3,7 @@
 
 export const isNumber = value => typeof value === 'number' && Number.isFinite(value);
 
-export const score = (row, state, universe = state.rankUniverse, metric = state.metric) =>
+export const score = (row, state, universe = state.universe, metric = state.metric) =>
   row[`${metric}_${universe}_${state.treatment}`] ?? null;
 
 export const field = (row, state) => row[state.classification] || 'Unclassified';
@@ -33,8 +33,8 @@ export function percentiles(items) {
 
 function exclusionReason(row, state) {
   const coverage = row.reference_coverage_pct, years = row.active_years;
-  if (!row[`in_${state.rankUniverse}`]) return 'Not in the ranking universe';
-  if (!isNumber(score(row, state))) return 'No score in the ranking universe';
+  if (!row[`in_${state.universe}`]) return 'Not in the selected universe';
+  if (!isNumber(score(row, state))) return 'No score in the selected universe';
   if (state.minCoverage >= 0 && !isNumber(coverage)) return 'Reference coverage unavailable';
   if (state.minCoverage >= 0 && coverage <= state.minCoverage) return 'Below the reference coverage requirement';
   if (state.minYears > 0 && !isNumber(years)) return 'Publication history unavailable';
@@ -43,6 +43,7 @@ function exclusionReason(row, state) {
 }
 
 // Percentiles within each field, then across all journals retained in the top share of their field.
+// The ranking universe is always the selected universe.
 export function rank(rows, state) {
   const groups = new Map();
   const reasons = new Map();
@@ -76,10 +77,7 @@ export function columnValue(row, state, ranks, key) {
   if (key === 'fieldPct') return ranks.fieldRanks.get(row.openalex_id) ?? null;
   if (key === 'poolPct') return ranks.poolRanks.get(row.openalex_id) ?? null;
   if (key === 'publications' || key === 'citations') return row[`${key}_${state.treatment}`] ?? null;
-  if (key.startsWith('score:')) {
-    const [, universe, metric] = key.split(':');
-    return score(row, state, universe, metric);
-  }
+  if (key.startsWith('score:')) return score(row, state, state.universe, key.split(':')[1]);
   return row[key] ?? null;
 }
 
@@ -90,14 +88,17 @@ export function view(rows, state, ranks) {
     (!state.fieldFilter || field(row, state) === state.fieldFilter) &&
     (!state.publisher || row.publisher === state.publisher) &&
     (!state.level || String(row.norwegian_level ?? '') === state.level) &&
-    (!state.member || row[`in_${state.member}`]) &&
+    (!state.onlyMembers || row[`in_${state.universe}`]) &&
     (!state.oaOnly || row.is_open_access === true) &&
     (!state.poolOnly || ranks.poolRanks.has(row.openalex_id)) &&
     (!query || searchText(row).includes(query)));
-  // Missing values sort last in both directions; ties fall back to the title.
+  // Journals outside the selected universe come last; within each part, missing values sort last in
+  // both directions and ties fall back to the title.
+  const outside = row => (row[`in_${state.universe}`] ? 0 : 1);
   const sortValue = row => state.sortKey === 'title' ? row.titleOrder : columnValue(row, state, ranks, state.sortKey);
   const keyed = shown.map(row => [sortValue(row), row]);
   keyed.sort(([a, rowA], [b, rowB]) => {
+    if (outside(rowA) !== outside(rowB)) return outside(rowA) - outside(rowB);
     if (a == null && b == null) return rowA.titleOrder - rowB.titleOrder;
     if (a == null) return 1;
     if (b == null) return -1;

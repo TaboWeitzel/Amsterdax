@@ -4,7 +4,7 @@ site/data/
 *.parquet
 *.csv
 
-# Licensed inputs (JCR/Clarivate, SBE lists) must never be committed
+# Licensed third-party inputs (e.g. commercial journal lists) must never be committed
 *.xlsx
 *.xls
 
