@@ -1,9 +1,10 @@
 // Amsterdax website: loads a data run and draws the journal table. The ranking logic is in engine.js.
-import { parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.1/+esm';
+import { asyncBufferFromUrl, parquetMetadataAsync, parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.1/+esm';
 import * as E from './engine.js';
 
 const $ = id => document.getElementById(id);
 const PAGE_SIZE = 25;
+const LEVELS_URL = 'https://kanalregister.hkdir.no/en/informasjonsartikler/levels-and-changes-in-levels';
 // The only place where the scores are named; the keys match the data columns (see SPEC.md).
 const METRICS = {
   share: { short: 'JNS', name: 'Journal Network Share', note: 'share of citation-network prestige; sums to 100 over the universe', digits: 5 },
@@ -29,6 +30,8 @@ let rows = [];      // journals of the selected run and year
 let dataColumns = [];
 let state = { ...DEFAULTS };
 let ranks, ranksKey, visible, columns, memberCount;
+const yearFiles = new Map(); // score files of other years, opened on demand for the journal details
+let historyRequest = 0;
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const option = (value, label) => `<option value="${escape(value)}">${escape(label)}</option>`;
@@ -244,23 +247,65 @@ function showJournal(id) {
     ['Publisher', escape(row.publisher || 'Unavailable')],
     ['OpenAlex domain / field', escape([row.oa_domain, row.oa_field].filter(Boolean).join(' / ') || 'Unclassified')],
     ['Norwegian area / field', escape([row.norwegian_area, row.norwegian_field].filter(Boolean).join(' / ') || 'Unclassified')],
-    [`Norwegian level ${year}`, escape(row.norwegian_level ?? 'Not in the register')],
+    [`Norwegian level ${year}`, row.norwegian_level == null ? 'Not in the register'
+      : `<a href="${LEVELS_URL}" target="_blank" rel="noopener noreferrer">Level ${escape(row.norwegian_level)} ↗ (what levels mean)</a>`],
     ['Open access journal', row.is_open_access == null ? 'Unknown' : row.is_open_access ? 'Yes' : 'No'],
     ['Publication years', `${fmt(row.active_years)} of 5 with eligible output`],
     ['Reference coverage', E.isNumber(row.reference_coverage_pct) ? `${fmt(row.reference_coverage_pct, 2)}%` : 'Unavailable'],
   ];
   if (state.showPercentiles) details.push(['Final percentile', ranks.poolRanks.has(id)
     ? `${fmt(ranks.poolRanks.get(id), 1)} · among ${count(ranks.retained)} journals` : escape(ranks.reasons.get(id) || 'Not eligible')]);
-  const scoreRow = u => row[`in_${u}`]
-    ? Object.keys(METRICS).map(metric => `<td>${fmtScore(E.score(row, state, u, metric), metric)}</td>`).join('')
-    : '<td colspan="2" class="not-member">Not in this universe</td>';
   $('dialog-content').innerHTML = `<p class="dialog-label">JOURNAL DETAILS · ${year} · ${state.treatment.toUpperCase()}</p><h2 id="dialog-title">${escape(row.title)}</h2>` +
     `<dl>${details.map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`).join('')}</dl>` +
-    `<table><thead><tr><th scope="col" class="align-left">Universe</th>${Object.values(METRICS).map(m => `<th scope="col">${m.short}</th>`).join('')}</tr></thead><tbody>` +
-    universeIds().map(u => `<tr><th scope="row" class="align-left">${escape(universeName(u))}</th>${scoreRow(u)}</tr>`).join('') + '</tbody></table>' +
+    `<h3>Scores by year · ${escape(universeName(state.universe))} universe · ${state.treatment === 'raw' ? 'Raw' : 'Filtered'}</h3><div id="history"></div>` +
     `<p>Publications: ${fmt(E.columnValue(row, state, ranks, 'publications'))} eligible articles and reviews from ${year - 5}–${year - 1}. ` +
     `Citations in ${year}: ${fmt(E.columnValue(row, state, ranks, 'citations'))}, excluding journal self-citations.</p>`;
   $('journal-dialog').showModal();
+  showHistory(id);
+}
+
+function yearFile(y) {
+  const url = `data/${run.run}/scores_${y}.parquet`;
+  if (!yearFiles.has(url)) yearFiles.set(url, (async () => {
+    const file = await asyncBufferFromUrl({ url });
+    return { file, metadata: await parquetMetadataAsync(file, { initialFetchSize: 1 << 17 }) }; // index is ~100 KB
+  })());
+  return yearFiles.get(url);
+}
+
+// The journal's row in every score year of the run. The site's files are sorted by journal in small
+// row groups (see tools/build_site_data.py), so only a small part of each file is downloaded.
+async function journalHistory(id) {
+  const u = state.universe, t = state.treatment;
+  const columns = ['openalex_id', 'norwegian_level', `publications_${t}`, 'reference_coverage_pct', `in_${u}`,
+    ...Object.keys(METRICS).map(metric => `${metric}_${u}_${t}`)];
+  return Promise.all([...manifest.years].sort((a, b) => b - a).map(async y => {
+    if (y === year) return [y, rows.find(r => r.openalex_id === id)];
+    const { file, metadata } = await yearFile(y);
+    const [found] = await parquetReadObjects({ file, metadata, columns, filter: { openalex_id: { $eq: id } } });
+    return [y, found ? E.toNumbers(found) : null];
+  }));
+}
+
+async function showHistory(id) {
+  const request = ++historyRequest; // ignore late answers for a journal that is no longer shown
+  const u = state.universe, metrics = Object.keys(METRICS);
+  $('history').innerHTML = '<p>Loading the other years…</p>';
+  try {
+    const history = await journalHistory(id);
+    if (request !== historyRequest) return;
+    const cells = r => !r ? `<td colspan="${4 + metrics.length}" class="missing">Not in the data for this year</td>`
+      : `<td>${r[`in_${u}`] ? 'Yes' : 'No'}</td><td>${escape(r.norwegian_level ?? '—')}</td>` +
+        `<td>${fmt(r[`publications_${state.treatment}`])}</td><td>${E.isNumber(r.reference_coverage_pct) ? `${fmt(r.reference_coverage_pct, 1)}%` : '—'}</td>` +
+        metrics.map(metric => `<td>${r[`in_${u}`] ? fmtScore(E.score(r, state, u, metric), metric) : '—'}</td>`).join('');
+    $('history').innerHTML = '<table><thead><tr><th scope="col" class="align-left">Score year</th><th scope="col">In universe</th>' +
+      '<th scope="col">Level</th><th scope="col">Publications</th><th scope="col">Ref. coverage</th>' +
+      `${Object.values(METRICS).map(m => `<th scope="col">${m.short}</th>`).join('')}</tr></thead><tbody>` +
+      history.map(([y, r]) => `<tr class="${y === year ? 'current-year' : ''}"><th scope="row" class="align-left">${y}</th>${cells(r)}</tr>`).join('') +
+      '</tbody></table>';
+  } catch (error) {
+    if (request === historyRequest) $('history').textContent = `The other years could not be loaded (${error.message}).`;
+  }
 }
 
 // ---- Downloads ----
