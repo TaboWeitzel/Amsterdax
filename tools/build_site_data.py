@@ -10,10 +10,11 @@ import shutil
 import sys
 from pathlib import Path
 
+import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 SITE_DATA = Path(__file__).resolve().parent.parent / "site" / "data"
-ROWS_PER_GROUP = 4096  # small, sorted row groups let the website fetch one journal without the whole file
 COLUMNS = ["openalex_id", "title", "publisher", "issn_l", "issns", "oa_domain", "oa_field", "norwegian_area",
            "norwegian_field", "norwegian_level", "is_open_access", "score_year", "publications_raw",
            "publications_filtered", "citations_raw", "citations_filtered", "reference_coverage_pct", "active_years"]
@@ -43,13 +44,28 @@ def check_run(folder):
 
 
 def copy_run(folder, manifest):
-    """Copy a run into the site, with each year sorted by journal in small row groups."""
+    """Copy a run into the site and add the history files used by the journal details."""
     target = SITE_DATA / folder.name
-    target.mkdir()
-    shutil.copy2(folder / "manifest.json", target / "manifest.json")
-    for year in manifest["years"]:
-        table = pq.read_table(folder / f"scores_{year}.parquet").sort_by("openalex_id")
-        pq.write_table(table, target / f"scores_{year}.parquet", row_group_size=ROWS_PER_GROUP)
+    shutil.copytree(folder, target)
+    write_history(target, manifest)
+
+
+def write_history(target, manifest):
+    """Split the scores of all years into 100 small files by the last two digits of the journal ID.
+
+    The journal details then download one small file instead of every year's full file. (GitHub Pages
+    compresses Parquet files, so the browser cannot download just the part of a file it needs.)
+    """
+    columns = ["openalex_id", "score_year", "norwegian_level", "publications_raw", "publications_filtered",
+               "reference_coverage_pct"]
+    for u in manifest["universes"]:
+        columns += [f"in_{u}", f"share_{u}_raw", f"share_{u}_filtered", f"per_article_{u}_raw", f"per_article_{u}_filtered"]
+    history = pa.concat_tables(pq.read_table(target / f"scores_{year}.parquet", columns=columns)
+                               for year in manifest["years"])
+    group = pc.utf8_slice_codeunits(history["openalex_id"], -2)
+    (target / "history").mkdir()
+    for key in pc.unique(group).to_pylist():
+        pq.write_table(history.filter(pc.equal(group, key)), target / "history" / f"{key}.parquet")
 
 
 def main(runs_folder, releases_url=None):
