@@ -6,7 +6,9 @@ export const isNumber = value => typeof value === 'number' && Number.isFinite(va
 export const score = (row, state, universe = state.universe, metric = state.metric) =>
   row[`${metric}_${universe}_${state.treatment}`] ?? null;
 
-export const field = (row, state) => row[state.classification] || 'Unclassified';
+// Percentiles are grouped by OpenAlex field (see SPEC.md).
+export const FIELD_COLUMN = 'oa_field';
+export const field = row => row[FIELD_COLUMN] || 'Unclassified';
 
 export const compareText = new Intl.Collator('en').compare;
 
@@ -56,7 +58,7 @@ export function rank(rows, state) {
   for (const row of rows) {
     const reason = exclusionReason(row, state);
     if (reason) { reasons.set(row.openalex_id, reason); continue; }
-    const key = field(row, state);
+    const key = field(row);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push({ id: row.openalex_id, value: score(row, state) });
   }
@@ -79,7 +81,6 @@ export function rank(rows, state) {
 
 // The value behind a table column, used for display, sorting and CSV export.
 export function columnValue(row, state, ranks, key) {
-  if (key === 'field') return field(row, state);
   if (key === 'fieldPct') return ranks.fieldRanks.get(row.openalex_id) ?? null;
   if (key === 'poolPct') return ranks.poolRanks.get(row.openalex_id) ?? null;
   if (key === 'publications' || key === 'citations') return row[`${key}_${state.treatment}`] ?? null;
@@ -95,7 +96,7 @@ export function view(rows, state, ranks) {
   const shown = rows.filter(row =>
     row[`in_${state.universe}`] &&
     (!domains.size || domains.has(row.oa_domain)) &&
-    (!fields.size || fields.has(row.oa_field)) &&
+    (!fields.size || fields.has(row[FIELD_COLUMN])) &&
     (!publishers.size || publishers.has(row.publisher)) &&
     (!state.oaOnly || row.is_open_access === true) &&
     (!state.poolOnly || ranks.poolRanks.has(row.openalex_id)) &&

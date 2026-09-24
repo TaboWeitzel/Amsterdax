@@ -4,7 +4,7 @@ Website for browsing and downloading open journal scores (Journal Network Share 
 
 - `SPEC.md`: what the website does and the data layout.
 - `publishing-data.md`: how to publish a new data run.
-- `site/`: the website. `engine.js` holds the ranking logic, `app.js` the page.
+- `site/`: the website. `engine.js` holds the ranking logic, `app.js` the journal table, `about.html` the About page.
 
 ## Preview locally
 

@@ -145,7 +145,6 @@ dialog p { font-size: 11px; line-height: 1.7; color: var(--muted) }
 }
 .notice.dummy { border-left-color: #c0572b; background: #fbe9e1; color: #8a3a17; font-weight: 600 }
 .notice.error { border-left-color: #b3261e; background: #fbe4e2; color: #8c1d18 }
-.run-control { width: 170px }
 .downloads { margin-top: 20px; padding: 18px 22px; font-size: 12px; line-height: 1.8 }
 .downloads h2 { font-size: 13px; margin: 0 0 6px; font-weight: 650 }
 .downloads p, .downloads ul { margin: 0; color: var(--muted) }
@@ -159,11 +158,9 @@ dialog p { font-size: 11px; line-height: 1.7; color: var(--muted) }
 .settings-row .control { min-width: 210px }
 .hint { font-size: 11px; color: var(--muted); margin: 6px 0 0 24px }
 #percentile-settings .reference-controls { grid-template-columns: repeat(4,1fr) auto; align-items: end }
-.not-member-cell { text-align: left; white-space: normal; color: var(--muted); min-width: 190px }
 dialog h3 { font-size: 12px; margin: 24px 0 10px }
 dialog .current-year th, dialog .current-year td { background: var(--soft); font-weight: 600 }
 dialog th, dialog td { padding: 8px 10px }
-.label-line { display: flex; align-items: center }
 .help { position: relative; display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%; background: var(--soft); color: var(--teal); font-size: 10px; font-weight: 700; cursor: help }
 .help-text { display: none; position: absolute; left: 0; top: 20px; z-index: 10; width: 290px; max-width: 70vw; padding: 10px 12px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 30px #102e3826; color: var(--ink); font-size: 11px; font-weight: 400; line-height: 1.6 }
 .help:hover .help-text, .help:focus .help-text { display: block }
