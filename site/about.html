@@ -44,8 +44,10 @@
     </section>
 
     <section class="panel">
-      <h2>Data runs</h2>
-      <p>Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. Use an older run to reproduce earlier results, and the latest run for the most complete data. All runs remain available for download.</p>
+      <h2>Score years and their data</h2>
+      <p>Each data run recalculates score years with the OpenAlex and Norwegian Register data available at that moment. OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs.</p>
+      <p>A score year is therefore published from one run. A <strong>frozen</strong> year always comes from that run and no longer changes, so it can be cited. A <strong>live</strong> year follows the newest run and can still change. Every run stays available for download.</p>
+      <div id="score-years">Loading the score years…</div>
     </section>
 
     <section class="panel">
@@ -67,5 +69,24 @@
 
     <footer class="page-footer"><span>AMSTERDAX <span aria-hidden="true">/</span> Open journal scores</span><span>Precomputed scores. Transparent comparison groups.</span></footer>
   </main>
+  <script type="module">
+    const escape = value => String(value ?? '—').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const target = document.getElementById('score-years');
+    try {
+      const index = await (await fetch('data/index.json')).json();
+      const row = entry => `<tr><th scope="row" class="align-left">${entry.year}</th>` +
+        `<td class="align-left">${escape(entry.status)}</td>` +
+        `<td class="align-left">${entry.release_url ? `<a href="${escape(entry.release_url)}">${escape(entry.run)}</a>` : escape(entry.run)}</td>` +
+        `<td class="align-left">${escape(entry.openalex_snapshot)}</td><td class="align-left">${escape(entry.norwegian_register_snapshot)}</td></tr>`;
+      target.innerHTML = index.years.length
+        ? '<table><thead><tr><th scope="col" class="align-left">Score year</th><th scope="col" class="align-left">Status</th>' +
+          '<th scope="col" class="align-left">Data run</th><th scope="col" class="align-left">OpenAlex snapshot</th>' +
+          '<th scope="col" class="align-left">Norwegian Register snapshot</th></tr></thead><tbody>' +
+          index.years.map(row).join('') + '</tbody></table>'
+        : 'No score years published yet.';
+    } catch (error) {
+      target.textContent = `The score years could not be loaded (${error.message}).`;
+    }
+  </script>
 </body>
 </html>
