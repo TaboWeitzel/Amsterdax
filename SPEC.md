@@ -2,14 +2,15 @@
 
 A public website where anyone can browse, filter and download open journal scores: Journal Network Share (JNS), Article Network Score (ANS) and ANS percentiles, computed from OpenAlex by the Amsterdax back-end. JNS and ANS follow the recursive citation-network method of Bergstrom, West and Wiseman (2008). The original names of these scores are trademarks of the University of Washington and are not used. No accounts, no payments; all data is open. Expected traffic is low (a few downloads a day).
 
-The back-end is a separate project (currently run on a laptop, possibly Docker/cloud later). This project covers the website and the data layout the back-end delivers.
+The back-end is a separate project (currently run on a laptop, possibly Docker/cloud later). This project covers the website, the data layout the back-end delivers, and which score years are published from which run.
 
 ## Architecture
 
 - Static website: plain HTML, CSS and JavaScript, no framework, no build step. Everything runs in the visitor's browser.
 - Hosted free on GitHub Pages, later with a custom domain.
 - Each data run is published as a GitHub Release of this repository. The releases are the permanent archive.
-- A deploy workflow (GitHub Actions) runs on every new release and on demand. It checks the files, copies the 4 most recent runs into the site (older runs stay downloadable as releases) and pushes the finished site as a single commit to the `gh-pages` branch, which GitHub Pages serves. See `publishing-data.md`.
+- The website shows **one published data set**: one file per score year, each taken from the run named in `score-years.json`, or from the latest run if the year is not named there. See "Frozen and live score years".
+- A deploy workflow (GitHub Actions) runs on every new release and on demand. It downloads the latest release and every run named in `score-years.json`, checks the files, assembles the published data set and pushes the finished site as a single commit to the `gh-pages` branch, which GitHub Pages serves. See `publishing-data.md`.
 - No account or repository names in the code, because the repository will change owner.
 
 ## Data layout
@@ -54,18 +55,52 @@ One release per run. The tag is the run name, e.g. `2026-Q3`. Each release conta
 
 `<u>` is each universe listed in the manifest. Adding a universe means new columns and a manifest entry, with no website changes.
 
+## Frozen and live score years
+
+A score year can be **frozen**: it is then always published from one specific run and no longer changes when new runs arrive. Which years are frozen is decided by hand in `score-years.json` in this repository:
+
+```json
+{
+  "2024": "2026-Q2",
+  "2025": "2026-Q2"
+}
+```
+
+- A year in this list is **frozen** and comes from the named run, even when newer runs contain that year.
+- A year not in the list is **live** and comes from the latest run, so a new run replaces it.
+- The published years are all years of the latest run plus all years in the list.
+- Freezing, repointing to a newer run, and unfreezing (removing the line) are changes to this file, made in a pull request, so the history shows who changed what and when.
+- The deploy fails with a clear message if a named run does not exist or does not contain that year.
+
+The runs themselves are never changed: every run stays complete and downloadable as a release.
+
+## Published data set
+
+The deploy writes this into the site (it is not committed to git):
+
+```
+site/data/index.json             what is published per score year
+site/data/scores_<year>.parquet  the year's data, from its run
+site/data/history/00…99.parquet  all years per group of journals, for the journal details
+```
+
+`index.json` holds, per score year, newest first: the year, `frozen` or `live`, the run it came from, that run's OpenAlex and Norwegian Register snapshot dates, its creation date, its release link and its universes. The website reads the universes per year, so a frozen year keeps the universes of its own run when a later run adds one.
+
 ## Website
 
 Based on the existing demo prototype.
 
-- Top bar: run (default: latest), score year, universe (Norwegian Register by default, or OpenAlex) and a Settings button. All other choices are in one collapsible settings panel.
-- Table of all journals with the JNS and ANS of the selected universe. Search by title, ID, ISSN or publisher; filter by field, publisher, Norwegian level and open access; sort by any column; rows are shown a page at a time.
-- Journals outside the selected universe stay in the table, listed last, with a link to switch to a universe that contains them. A setting hides them. "Not in this universe" is shown differently from "in this universe, but no score".
-- Defaults: Filtered scores (a setting switches to Raw) and OpenAlex fields as field classification, as in the working paper and report.
-- Percentiles are off by default. When switched on, they are computed in the browser within the selected universe, from the chosen indicator (JNS or ANS), field classification, minimum reference coverage, minimum active years and top % kept per field. An example preset fills these in. Ties get the highest shared rank.
-- Journal detail view: metadata, a link to OpenAlex, the Norwegian level linked to the register's explanation of levels, and a table with the journal's scores in every score year of the selected run (selected universe and Raw/Filtered). The other years come from small history files (one per group of journals, built by `build_site_data.py`), downloaded when a journal is opened.
-- Downloads: the current view as CSV; one CSV built from a chosen run (any run on the site), score years and universes (journals in at least one chosen universe, Raw and Filtered columns); complete Parquet files per year; older runs via the releases page. A "?" next to each run selector explains how runs differ.
-- About page (`about.html`, no table): what the scores measure, journal universes, Raw and Filtered scores, data runs, a summary of the working paper and how to cite it, and data sources with attribution (Norwegian Register). Both pages share a small navigation.
+- Top bar: score year, universe (dropdown, the universes of the selected year) and a Settings button. All other choices are in one collapsible settings panel.
+- Above the table, next to the journal count: whether the year is frozen or live, plus the OpenAlex snapshot date, e.g. "Frozen · 2026-06" or "Live · 2026-09". The run name and the other snapshot dates are shown on hover.
+- The table shows only journals in the selected universe, with their JNS and ANS. Search by title, ID, ISSN or publisher; sort by any column; rows are shown a page at a time.
+- When a search finds nothing, a line reports how many journals match in another universe, e.g. "3 journals match in the OpenAlex universe".
+- Columns: journal (with a "More info" link that opens the details), OpenAlex domain, OpenAlex field, publications, citations, reference coverage, JNS and ANS, plus the percentile columns when those are switched on.
+- Filters in the settings panel: OpenAlex domains (multiple), OpenAlex fields (multiple), publishers (multiple) and open access only. Domain and field filters are combined.
+- Defaults: Filtered scores; a setting switches to Raw.
+- Percentiles are hidden until they are switched on. Their settings start at the values from the working paper and report (ANS, reference coverage above 20%, output in at least 4 of 5 years, top 70% per field) and a "Reset percentile settings" button returns to them. They are computed in the browser, within the selected universe, grouped by OpenAlex field. Ties get the highest shared rank.
+- Journal detail view: metadata, a link to OpenAlex, the Norwegian level linked to the register's explanation of levels, and a table with the journal's scores in every published score year (selected universe and Raw/Filtered), including each year's data vintage. The other years come from small history files, downloaded when a journal is opened.
+- Downloads: the current view as CSV; one CSV built from chosen score years and universes of the published data set (journals in at least one chosen universe, Raw and Filtered columns); complete Parquet files per year; older runs via the releases page.
+- About page (`about.html`, no table): what the scores measure, journal universes, Raw and Filtered scores, frozen and live score years with their data vintage, a summary of the working paper and how to cite it, and data sources with attribution (Norwegian Register). Both pages share a small navigation.
 - Dummy data runs show a clear banner.
 
 ## Repository layout
@@ -73,8 +108,9 @@ Based on the existing demo prototype.
 ```
 site/                  the website (data/ is filled in by the deploy workflow)
 tests/                 tests for the ranking logic
-tools/                 make_dummy_data.py, build_site_data.py (checks runs, copies them into site/data/, writes 100 small history files per run)
+tools/                 make_dummy_data.py, build_site_data.py (checks runs, assembles the published data set, writes 100 small history files)
 .github/workflows/     deploy workflow
+score-years.json       which score years are frozen, and from which run
 ```
 
 ## Open points
