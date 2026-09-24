@@ -182,12 +182,12 @@ dialog th, dialog td { padding: 8px 10px }
 .data-status.live { color: var(--amber) }
 dialog .vintage { display: block; font-size: 10px; font-weight: 400; color: var(--muted) }
 .more-info { display: inline-block; margin-top: 5px; margin-left: 10px }
-.publisher-filter { min-width: 320px }
-.publisher-filter input[type=search] { height: 36px; border: 1px solid #cdd7d6; border-radius: 5px; padding: 0 10px; font-size: 12px }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0 }
-.chip { border: 1px solid #aac8bc; background: var(--soft); color: var(--teal); border-radius: 20px; padding: 4px 10px; font-size: 11px }
-.publisher-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px }
-.publisher-list .hint { margin: 4px 0 0 }
-#domain-filter, #field-filter { margin-bottom: 14px }
 .about table { width: 100%; border: 1px solid var(--line); border-radius: 5px; margin: 14px 0 6px; font-size: 12px }
 .about th, .about td { padding: 8px 10px }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px }
+.filter-box { border: 0; padding: 0; margin: 0; min-width: 0 }
+.filter-box legend { font-size: 11px; font-weight: 600; padding: 0; margin-bottom: 8px }
+.filter-box input[type=search] { width: 100%; height: 32px; border: 1px solid #cdd7d6; border-radius: 5px; padding: 0 10px; font-size: 12px; background: #fafcfb }
+.filter-list { height: 148px; overflow-y: auto; border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px }
+.filter-list .hint { margin: 2px 0 0 }
+.oa-only-line { margin-top: 14px }

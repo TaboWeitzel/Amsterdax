@@ -22,13 +22,20 @@ const DEFAULTS = {
   sortKey: 'score:per_article', sortDirection: -1, page: 0,
 };
 const PERCENTILE_SETTINGS = ['metric', 'minCoverage', 'minYears', 'topPercent', 'poolOnly'];
-const PUBLISHERS_SHOWN = 40; // the publisher filter shows this many matches at a time
+// The three filter lists, each a search box above a scrollable list of checkboxes.
+const FILTERS = {
+  domains: { column: 'oa_domain', label: 'OpenAlex domains', list: 'domain-filter', search: 'domain-search', legend: 'domain-legend' },
+  fields: { column: 'oa_field', label: 'OpenAlex fields', list: 'field-filter', search: 'field-search', legend: 'field-legend' },
+  publishers: { column: 'publisher', label: 'Publishers', list: 'publisher-list', search: 'publisher-search', legend: 'publisher-legend' },
+};
+const FILTER_ROWS_SHOWN = 40; // a filter list shows this many matches at a time
 
 let index;          // data/index.json: the published score years, newest first
 let year;           // the selected score year
 let rows = [];      // journals of the selected score year
 let state = { ...DEFAULTS };
-let ranks, ranksKey, visible, columns, memberCount, publishers = [];
+let ranks, ranksKey, visible, columns, memberCount;
+const filterValues = {}; // every value per filter, for the selected universe
 const historyFiles = new Map(); // history files, downloaded on demand for the journal details
 let historyRequest = 0;
 
@@ -204,32 +211,26 @@ function matchesElsewhere() {
 
 const uniqueValues = values => [...new Set(values.filter(Boolean))].sort(E.compareText);
 
-function setBoxes(id, legend, values, key) {
-  state[key] = state[key].filter(value => values.includes(value));
-  $(id).innerHTML = `<legend>${legend}</legend>` + values.map(value =>
-    `<label class="check-line"><input type="checkbox" value="${escape(value)}"${state[key].includes(value) ? ' checked' : ''}>${escape(value)}</label>`).join('');
-}
-
 function fillFilters() {
   const inUniverse = rows.filter(row => row[`in_${state.universe}`]);
-  setBoxes('domain-filter', 'OpenAlex domains', uniqueValues(inUniverse.map(row => row.oa_domain)), 'domains');
-  setBoxes('field-filter', 'OpenAlex fields', uniqueValues(inUniverse.map(row => row.oa_field)), 'fields');
-  publishers = uniqueValues(inUniverse.map(row => row.publisher));
-  state.publishers = state.publishers.filter(value => publishers.includes(value));
-  drawPublisherFilter();
+  for (const [key, filter] of Object.entries(FILTERS)) {
+    filterValues[key] = uniqueValues(inUniverse.map(row => row[filter.column]));
+    state[key] = state[key].filter(value => filterValues[key].includes(value));
+    drawFilter(key);
+  }
 }
 
-// Thousands of publishers: show the ones matching the search, with the chosen ones as chips.
-function drawPublisherFilter() {
-  const query = $('publisher-search').value.toLowerCase().trim();
-  const matches = publishers.filter(name => name.toLowerCase().includes(query));
-  const shown = matches.slice(0, PUBLISHERS_SHOWN);
-  $('publisher-chips').innerHTML = state.publishers.map(name =>
-    `<button type="button" class="chip" data-publisher="${escape(name)}" aria-label="Remove ${escape(name)}">${escape(name)} ×</button>`).join('');
-  $('publisher-list').innerHTML = shown.map(name =>
-    `<label class="check-line"><input type="checkbox" value="${escape(name)}"${state.publishers.includes(name) ? ' checked' : ''}>${escape(name)}</label>`).join('') +
+// Chosen values come first, so they stay visible and the box never changes size.
+function drawFilter(key) {
+  const filter = FILTERS[key], chosen = state[key];
+  const query = $(filter.search).value.toLowerCase().trim();
+  const matches = filterValues[key].filter(value => value.toLowerCase().includes(query));
+  const shown = [...matches].sort((a, b) => Number(chosen.includes(b)) - Number(chosen.includes(a))).slice(0, FILTER_ROWS_SHOWN);
+  $(filter.legend).textContent = chosen.length ? `${filter.label} (${chosen.length} selected)` : filter.label;
+  $(filter.list).innerHTML = shown.map(value =>
+    `<label class="check-line"><input type="checkbox" value="${escape(value)}"${chosen.includes(value) ? ' checked' : ''}>${escape(value)}</label>`).join('') +
     (matches.length > shown.length ? `<p class="hint">${count(matches.length - shown.length)} more; refine the search.</p>` : '') +
-    (matches.length ? '' : '<p class="hint">No publishers match.</p>');
+    (matches.length ? '' : '<p class="hint">Nothing matches.</p>');
 }
 
 function syncControls() {
@@ -427,21 +428,14 @@ $('table-body').addEventListener('click', event => {
   const id = event.target.closest('[data-journal]')?.dataset.journal;
   if (id) showJournal(id);
 });
-for (const [id, key] of [['domain-filter', 'domains'], ['field-filter', 'fields']]) {
-  $(id).addEventListener('change', () => update({ [key]: [...$(id).querySelectorAll('input:checked')].map(box => box.value) }));
+for (const [key, filter] of Object.entries(FILTERS)) {
+  $(filter.search).addEventListener('input', () => drawFilter(key));
+  $(filter.list).addEventListener('change', event => {
+    const value = event.target.value;
+    update({ [key]: event.target.checked ? [...state[key], value] : state[key].filter(chosen => chosen !== value) });
+    drawFilter(key);
+  });
 }
-$('publisher-search').addEventListener('input', drawPublisherFilter);
-$('publisher-list').addEventListener('change', event => {
-  const name = event.target.value;
-  update({ publishers: event.target.checked ? [...state.publishers, name] : state.publishers.filter(p => p !== name) });
-  drawPublisherFilter();
-});
-$('publisher-chips').addEventListener('click', event => {
-  const name = event.target.closest('[data-publisher]')?.dataset.publisher;
-  if (!name) return;
-  update({ publishers: state.publishers.filter(p => p !== name) });
-  drawPublisherFilter();
-});
 $('previous').addEventListener('click', () => { state.page--; drawPage(); });
 $('next').addEventListener('click', () => { state.page++; drawPage(); });
 $('download-view').addEventListener('click', downloadView);
