@@ -8,7 +8,7 @@ on:
     types: [published, deleted]
   push:
     branches: [main]
-    paths: ["site/**", "tests/**", "tools/build_site_data.py", ".github/workflows/deploy.yml"]
+    paths: ["site/**", "tests/**", "tools/build_site_data.py", "score-years.json", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 permissions:
@@ -17,9 +17,6 @@ permissions:
 concurrency:
   group: pages
   cancel-in-progress: false
-
-env:
-  RUNS_ON_SITE: 4  # the most recent runs are viewable on the site; all runs stay downloadable as releases
 
 jobs:
   deploy:
@@ -36,15 +33,16 @@ jobs:
       - name: Test the ranking logic
         run: node tests/engine.test.mjs
 
-      - name: Download the most recent data runs
+      - name: Download the latest run and the runs that score years are frozen to
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          latest=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName')
           mkdir runs
-          tags=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit "$RUNS_ON_SITE" --json tagName --jq '.[].tagName')
-          for tag in $tags; do
-            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "runs/$tag"
+          for tag in $latest $(jq -r '.[]' score-years.json | sort -u); do
+            [ -d "runs/$tag" ] || gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "runs/$tag"
           done
+          echo "LATEST_RUN=$latest" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v7
         with:
@@ -53,7 +51,7 @@ jobs:
       - name: Check the data and add it to the site
         run: |
           pip install pyarrow
-          python tools/build_site_data.py runs "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases"
+          python tools/build_site_data.py runs "$LATEST_RUN" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases"
 
       - name: Add a version to the code links, so browsers never mix old and new files
         working-directory: site

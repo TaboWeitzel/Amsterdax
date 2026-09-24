@@ -26,14 +26,11 @@ const EXAMPLE_PRESET = {
   level: '', onlyMembers: false, oaOnly: false, page: 0,
 };
 
-let index;          // data/runs.json: the runs on this site, newest first
-let run;            // the selected run
-let manifest;       // its manifest.json
+let index;          // data/index.json: the published score years, newest first
 let year;           // the selected score year
-let rows = [];      // journals of the selected run and year
+let rows = [];      // journals of the selected score year
 let state = { ...DEFAULTS };
 let ranks, ranksKey, visible, columns, memberCount;
-const manifests = new Map(); // manifest.json per run
 const historyFiles = new Map(); // history files, downloaded on demand for the journal details
 let historyRequest = 0;
 
@@ -45,8 +42,9 @@ const fmt = (value, digits = 0) => E.isNumber(value)
 // Very small positive scores use scientific notation so they don't round to zero.
 const fmtScore = (value, metric) => E.isNumber(value) && value > 0 && value < 10 ** -METRICS[metric].digits
   ? value.toExponential(2) : fmt(value, METRICS[metric].digits);
-const universeIds = () => Object.keys(manifest.universes);
-const universeName = u => manifest.universes[u] ?? u.toUpperCase();
+const publishedYear = () => index.years.find(entry => entry.year === year);
+const universeIds = () => Object.keys(publishedYear().universes);
+const universeName = u => publishedYear().universes[u] ?? u.toUpperCase();
 const openAlexUrl = row => `https://openalex.org/${encodeURIComponent(row.openalex_id)}`;
 
 async function fetchOk(url) {
@@ -62,43 +60,40 @@ function showError(error) {
 
 // ---- Loading data ----
 
-const runManifest = name => {
-  if (!manifests.has(name)) manifests.set(name, fetchOk(`data/${name}/manifest.json`).then(response => response.json()));
-  return manifests.get(name);
-};
-
-async function loadRun(name) {
-  run = index.runs.find(r => r.run === name);
-  manifest = await runManifest(run.run);
-  const ids = universeIds();
-  if (!ids.includes(state.universe)) state.universe = ids[0];
-  $('universe').innerHTML = '<legend>Universe</legend>' + ids.map(u =>
-    `<label class="universe-chip"><input type="radio" name="universe" value="${escape(u)}"> ${escape(universeName(u))}</label>`).join('');
-  $('year').innerHTML = [...manifest.years].sort((a, b) => b - a).map(y => option(y, y)).join('');
-  await loadYear(Math.max(...manifest.years));
-}
-
 async function loadYear(newYear) {
   $('notice').className = 'notice';
   $('notice').textContent = `Loading score year ${newYear}…`;
-  const buffer = await (await fetchOk(`data/${run.run}/scores_${newYear}.parquet`)).arrayBuffer();
+  const buffer = await (await fetchOk(`data/scores_${newYear}.parquet`)).arrayBuffer();
   const data = await parquetReadObjects({ file: buffer });
   year = newYear;
   rows = E.prepareRows(data);
   ranksKey = null;
   state.page = 0;
+  // A year keeps the universes of the run it came from, so the choice is rebuilt per year.
+  const ids = universeIds();
+  if (!ids.includes(state.universe)) state.universe = ids[0];
+  $('universe').innerHTML = ids.map(u => option(u, universeName(u))).join('');
   fillFilters();
   syncControls();
   render();
-  showRunInfo();
+  showDataInfo();
 }
 
-function showRunInfo() {
+// Where the numbers come from: frozen years never change, live years follow the newest run.
+function showDataInfo() {
+  const entry = publishedYear();
+  const month = (entry.openalex_snapshot ?? '').slice(0, 7);
+  $('data-status').textContent = `${entry.status === 'frozen' ? 'Frozen' : 'Live'}${month ? ` · ${month}` : ''}`;
+  $('data-status').className = `data-status ${entry.status}`;
+  $('data-status').title = `Score year ${entry.year} comes from run ${entry.run}` +
+    ` · OpenAlex snapshot ${entry.openalex_snapshot ?? 'unknown'}` +
+    ` · Norwegian Register snapshot ${entry.norwegian_register_snapshot ?? 'unknown'}` +
+    ` · run published ${entry.created}`;
   const notice = $('notice');
-  notice.className = manifest.dummy ? 'notice dummy' : 'notice';
-  notice.textContent = manifest.dummy
-    ? `Dummy data: every journal and number in run ${run.run} is made up, for testing the website only.`
-    : `Run ${run.run} · OpenAlex snapshot ${manifest.openalex_snapshot} · Norwegian Register snapshot ${manifest.norwegian_register_snapshot}`;
+  notice.className = entry.dummy ? 'notice dummy' : 'notice';
+  notice.textContent = entry.dummy
+    ? `Dummy data: every journal and number in run ${entry.run} is made up, for testing the website only.`
+    : `Score year ${entry.year} · ${entry.status === 'frozen' ? 'frozen' : 'live'} · from run ${entry.run}`;
 }
 
 // ---- Table ----
@@ -217,7 +212,6 @@ function fillFilters() {
 function syncControls() {
   for (const [id, key] of Object.entries(SELECTS)) $(id).value = state[key];
   for (const [id, key] of Object.entries(CHECKBOXES)) $(id).checked = state[key];
-  $('run').value = run.run;
   $('year').value = year;
   $('search').value = state.query;
   $('top-percent').value = state.topPercent;
@@ -254,12 +248,12 @@ function showJournal(id) {
 // The journal's row in every score year of the run. tools/build_site_data.py splits all years into
 // 100 small history files by the last two digits of the journal ID, so only one small file is downloaded.
 async function journalHistory(id) {
-  const url = `data/${run.run}/history/${id.slice(-2)}.parquet`;
+  const url = `data/history/${id.slice(-2)}.parquet`;
   if (!historyFiles.has(url)) historyFiles.set(url, fetchOk(url).then(response => response.arrayBuffer())
     .catch(error => { historyFiles.delete(url); throw error; })); // a failed download is retried next time
   const found = await parquetReadObjects({ file: await historyFiles.get(url), filter: { openalex_id: { $eq: id } } });
   const byYear = new Map(found.map(row => [Number(row.score_year), E.toNumbers(row)]));
-  return [...manifest.years].sort((a, b) => b - a).map(y => [y, byYear.get(y) ?? null]);
+  return index.years.map(entry => [entry, byYear.get(entry.year) ?? null]);
 }
 
 async function showHistory(id) {
@@ -273,10 +267,12 @@ async function showHistory(id) {
       : `<td>${r[`in_${u}`] ? 'Yes' : 'No'}</td><td>${escape(r.norwegian_level ?? '—')}</td>` +
         `<td>${fmt(r[`publications_${state.treatment}`])}</td><td>${E.isNumber(r.reference_coverage_pct) ? `${fmt(r.reference_coverage_pct, 1)}%` : '—'}</td>` +
         metrics.map(metric => `<td>${r[`in_${u}`] ? fmtScore(E.score(r, state, u, metric), metric) : '—'}</td>`).join('');
+    const yearCell = entry => `<th scope="row" class="align-left">${entry.year}` +
+      `<span class="vintage">${entry.status} · ${(entry.openalex_snapshot ?? '').slice(0, 7)}</span></th>`;
     $('history').innerHTML = '<table><thead><tr><th scope="col" class="align-left">Score year</th><th scope="col">In universe</th>' +
       '<th scope="col">Level</th><th scope="col">Publications</th><th scope="col">Ref. coverage</th>' +
       `${Object.values(METRICS).map(m => `<th scope="col">${m.short}</th>`).join('')}</tr></thead><tbody>` +
-      history.map(([y, r]) => `<tr class="${y === year ? 'current-year' : ''}"><th scope="row" class="align-left">${y}</th>${cells(r)}</tr>`).join('') +
+      history.map(([entry, r]) => `<tr class="${entry.year === year ? 'current-year' : ''}">${yearCell(entry)}${cells(r)}</tr>`).join('') +
       '</tbody></table>';
   } catch (error) {
     if (request === historyRequest) $('history').textContent = `The other years could not be loaded (${error.message}).`;
@@ -313,7 +309,9 @@ function csvHeader(key) {
 }
 
 function downloadView() {
-  const settings = { run: run.run, score_year: year, universe: state.universe, treatment: state.treatment, classification: state.classification };
+  const entry = publishedYear();
+  const settings = { score_year: year, data_status: entry.status, run: entry.run, openalex_snapshot: entry.openalex_snapshot,
+    universe: state.universe, treatment: state.treatment, classification: state.classification };
   if (state.showPercentiles) Object.assign(settings, {
     ranking_indicator: state.metric, coverage_strictly_above_pct: state.minCoverage < 0 ? 'none' : state.minCoverage,
     minimum_output_years: state.minYears, retained_top_pct_per_field: state.topPercent, final_pool_size: ranks.retained,
@@ -323,42 +321,42 @@ function downloadView() {
     ...(state.showPercentiles ? ['percentile_exclusion_reason'] : []), ...Object.keys(settings)];
   const lines = visible.map(row => [row.openalex_id, row[`in_${state.universe}`],
     ...columns.map(c => E.columnValue(row, state, ranks, c.key)), ...reason(row), ...Object.values(settings)]);
-  saveCsv(`amsterdax-${run.run}-${year}-${state.treatment}-view.csv`, [csvLines([header, ...lines])]);
+  saveCsv(`amsterdax-${year}-${state.treatment}-view.csv`, [csvLines([header, ...lines])]);
 }
 
-async function showDownloadChoices(name) {
-  const m = await runManifest(name), years = [...m.years].sort((a, b) => b - a);
+function showDownloadChoices() {
   const box = (value, label) => `<label class="check-line"><input type="checkbox" value="${escape(value)}" checked>${escape(label)}</label>`;
-  $('download-years').innerHTML = '<legend>Score years</legend>' + years.map(y => box(y, y)).join('');
-  $('download-universes').innerHTML = '<legend>Universes</legend>' + Object.entries(m.universes).map(([u, label]) => box(u, label)).join('');
-  const release = index.runs.find(r => r.run === name)?.release_url;
-  $('download-files').innerHTML = `Complete files of run ${escape(name)}, all columns (Parquet): ` +
-    years.map(y => `<a href="data/${escape(name)}/scores_${y}.parquet" download>${y}</a>`).join(' · ') +
-    (release ? ` · <a href="${escape(release)}">release page</a>` : '') +
-    (index.releases_url ? `. Runs older than the ones listed here: <a href="${escape(index.releases_url)}">all releases</a>.` : '.');
+  const universes = Object.assign({}, ...index.years.map(entry => entry.universes));
+  $('download-years').innerHTML = '<legend>Score years</legend>' + index.years.map(entry => box(entry.year, entry.year)).join('');
+  $('download-universes').innerHTML = '<legend>Universes</legend>' + Object.entries(universes).map(([u, label]) => box(u, label)).join('');
+  $('download-files').innerHTML = 'Complete files per score year, all columns (Parquet): ' +
+    index.years.map(entry => `<a href="data/scores_${entry.year}.parquet" download>${entry.year}</a>`).join(' · ') +
+    (index.releases_url ? `. Every data run stays available on the <a href="${escape(index.releases_url)}">releases page</a>.` : '.');
 }
 
 // One CSV with the chosen years and universes, built one year at a time to limit memory use.
 async function downloadSelection() {
-  const name = $('download-run').value;
   const checked = id => [...$(id).querySelectorAll('input:checked')].map(input => input.value);
   const years = checked('download-years').map(Number), universes = checked('download-universes');
   const status = text => { $('download-status').textContent = text; };
   if (!years.length || !universes.length) return status('Choose at least one score year and one universe.');
-  const columns = [...BASE_COLUMNS, ...universes.flatMap(u => [`in_${u}`,
-    ...Object.keys(METRICS).flatMap(metric => [`${metric}_${u}_raw`, `${metric}_${u}_filtered`])])];
+  const universeColumns = u => [`in_${u}`, ...Object.keys(METRICS).flatMap(metric => [`${metric}_${u}_raw`, `${metric}_${u}_filtered`])];
+  const columns = [...BASE_COLUMNS, ...universes.flatMap(universeColumns)];
   const parts = [csvLines([columns])];
   let total = 0;
   $('download-build').disabled = true;
   try {
     for (const [i, y] of years.entries()) {
       status(`Preparing score year ${y} (${i + 1} of ${years.length})…`);
-      const buffer = await (await fetchOk(`data/${name}/scores_${y}.parquet`)).arrayBuffer();
-      const kept = (await parquetReadObjects({ file: buffer, columns })).filter(row => universes.some(u => row[`in_${u}`]));
+      const buffer = await (await fetchOk(`data/scores_${y}.parquet`)).arrayBuffer();
+      // A year only has the universes of its own run; columns it lacks stay empty in the CSV.
+      const inYear = universes.filter(u => u in index.years.find(entry => entry.year === y).universes);
+      const available = [...BASE_COLUMNS, ...inYear.flatMap(universeColumns)];
+      const kept = (await parquetReadObjects({ file: buffer, columns: available })).filter(row => inYear.some(u => row[`in_${u}`]));
       if (kept.length) parts.push('\r\n', csvLines(kept.map(row => columns.map(column => row[column]))));
       total += kept.length;
     }
-    saveCsv(`amsterdax-${name}-${years.join('-')}-${universes.join('-')}.csv`, parts);
+    saveCsv(`amsterdax-${years.join('-')}-${universes.join('-')}.csv`, parts);
     status(`Saved ${count(total)} rows (${years.length} score years × journals in ${universes.length === 1 ? 'the chosen universe' : 'at least one chosen universe'}).`);
   } catch (error) {
     status(`The download could not be prepared (${error.message}).`);
@@ -377,7 +375,6 @@ for (const [id, key] of Object.entries(SELECTS)) $(id).addEventListener('change'
   update({ [key]: value });
 });
 for (const [id, key] of Object.entries(CHECKBOXES)) $(id).addEventListener('change', event => update({ [key]: event.target.checked }));
-$('run').addEventListener('change', event => loadRun(event.target.value).catch(showError));
 $('year').addEventListener('change', event => loadYear(Number(event.target.value)).catch(showError));
 $('search').addEventListener('input', event => update({ query: event.target.value }));
 $('include-zero').addEventListener('change', event => update({ treatment: event.target.checked ? 'raw' : 'filtered' }));
@@ -410,7 +407,6 @@ $('table-body').addEventListener('click', event => {
 $('previous').addEventListener('click', () => { state.page--; drawPage(); });
 $('next').addEventListener('click', () => { state.page++; drawPage(); });
 $('download-view').addEventListener('click', downloadView);
-$('download-run').addEventListener('change', event => showDownloadChoices(event.target.value).catch(showError));
 $('download-build').addEventListener('click', downloadSelection);
 $('close-dialog').addEventListener('click', () => $('journal-dialog').close());
 $('example-preset').addEventListener('click', () => {
@@ -427,12 +423,11 @@ $('reset').addEventListener('click', () => {
 
 $('metric').innerHTML = Object.entries(METRICS).map(([metric, m]) => option(metric, `${m.short} · ${m.name}`)).join('');
 try {
-  index = await (await fetchOk('data/runs.json')).json();
-  if (!index.runs.length) throw new Error('no data runs published yet');
-  const runOptions = index.runs.map(r => option(r.run, r.run + (r.dummy ? ' (dummy)' : ''))).join('');
-  $('run').innerHTML = runOptions;
-  $('download-run').innerHTML = runOptions;
-  await Promise.all([loadRun(index.runs[0].run), showDownloadChoices(index.runs[0].run)]);
+  index = await (await fetchOk('data/index.json')).json();
+  if (!index.years.length) throw new Error('no data runs published yet');
+  $('year').innerHTML = index.years.map(entry => option(entry.year, entry.year)).join('');
+  showDownloadChoices();
+  await loadYear(index.years[0].year);
 } catch (error) {
   showError(error);
 }

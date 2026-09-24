@@ -189,3 +189,6 @@ dialog th, dialog td { padding: 8px 10px }
 .about p, .about li { font-size: 13px; line-height: 1.75; color: #34464f }
 .about li { margin-bottom: 6px }
 .about .citation { border-left: 3px solid var(--teal); padding: 4px 0 4px 14px }
+.data-status { margin-left: 4px; font-weight: 600; color: var(--teal) }
+.data-status.live { color: var(--amber) }
+dialog .vintage { display: block; font-size: 10px; font-weight: 400; color: var(--muted) }
