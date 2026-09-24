@@ -349,7 +349,8 @@ function downloadView() {
 function showDownloadChoices() {
   const box = (value, label) => `<label class="check-line"><input type="checkbox" value="${escape(value)}" checked>${escape(label)}</label>`;
   const universes = Object.assign({}, ...index.years.map(entry => entry.universes));
-  $('download-years').innerHTML = '<legend>Score years</legend>' + index.years.map(entry => box(entry.year, entry.year)).join('');
+  const vintage = entry => `${entry.year} (${entry.status} · ${(entry.openalex_snapshot ?? '').slice(0, 7) || 'date unknown'})`;
+  $('download-years').innerHTML = '<legend>Score years</legend>' + index.years.map(entry => box(entry.year, vintage(entry))).join('');
   $('download-universes').innerHTML = '<legend>Universes</legend>' + Object.entries(universes).map(([u, label]) => box(u, label)).join('');
   $('download-files').innerHTML = 'Complete files per score year, all columns (Parquet): ' +
     index.years.map(entry => `<a href="data/scores_${entry.year}.parquet" download>${entry.year}</a>`).join(' · ') +
@@ -364,7 +365,8 @@ async function downloadSelection() {
   if (!years.length || !universes.length) return status('Choose at least one score year and one universe.');
   const universeColumns = u => [`in_${u}`, ...Object.keys(METRICS).flatMap(metric => [`${metric}_${u}_raw`, `${metric}_${u}_filtered`])];
   const columns = [...BASE_COLUMNS, ...universes.flatMap(universeColumns)];
-  const parts = [csvLines([columns])];
+  const source = ['data_status', 'run', 'openalex_snapshot']; // where this score year's numbers come from
+  const parts = [csvLines([[...columns, ...source]])];
   let total = 0;
   $('download-build').disabled = true;
   try {
@@ -372,10 +374,12 @@ async function downloadSelection() {
       status(`Preparing score year ${y} (${i + 1} of ${years.length})…`);
       const buffer = await (await fetchOk(`data/scores_${y}.parquet`)).arrayBuffer();
       // A year only has the universes of its own run; columns it lacks stay empty in the CSV.
-      const inYear = universes.filter(u => u in index.years.find(entry => entry.year === y).universes);
+      const yearEntry = index.years.find(entry => entry.year === y);
+      const inYear = universes.filter(u => u in yearEntry.universes);
       const available = [...BASE_COLUMNS, ...inYear.flatMap(universeColumns)];
       const kept = (await parquetReadObjects({ file: buffer, columns: available })).filter(row => inYear.some(u => row[`in_${u}`]));
-      if (kept.length) parts.push('\r\n', csvLines(kept.map(row => columns.map(column => row[column]))));
+      const from = [yearEntry.status, yearEntry.run, yearEntry.openalex_snapshot];
+      if (kept.length) parts.push('\r\n', csvLines(kept.map(row => [...columns.map(column => row[column]), ...from])));
       total += kept.length;
     }
     saveCsv(`amsterdax-${years.join('-')}-${universes.join('-')}.csv`, parts);

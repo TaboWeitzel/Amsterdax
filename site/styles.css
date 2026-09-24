@@ -192,3 +192,5 @@ dialog .vintage { display: block; font-size: 10px; font-weight: 400; color: var(
 .publisher-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px }
 .publisher-list .hint { margin: 4px 0 0 }
 #domain-filter, #field-filter { margin-bottom: 14px }
+.about table { width: 100%; border: 1px solid var(--line); border-radius: 5px; margin: 14px 0 6px; font-size: 12px }
+.about th, .about td { padding: 8px 10px }
