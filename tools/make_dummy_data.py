@@ -1,16 +1,19 @@
 """Generate a dummy data run in the layout described in SPEC.md.
 
 All journals and numbers are made up. Needs numpy, pandas and pyarrow.
-Usage: python tools/make_dummy_data.py   (writes export/2026-Q3-dummy/)
+Usage: python tools/make_dummy_data.py [run]   (default 2026-Q3-dummy, writes export/<run>/)
+A second run with a different name gives different numbers, so freezing score years can be tested.
 """
 import json
+import sys
+import zlib
 from datetime import date
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-RUN = "2026-Q3-dummy"
+RUN = sys.argv[1] if len(sys.argv) > 1 else "2026-Q3-dummy"
 YEARS = [2022, 2023, 2024, 2025]
 N_JOURNALS = 110_000
 UNIVERSES = {"n": "Norwegian Register", "oa": "OpenAlex"}
@@ -35,8 +38,15 @@ NORWEGIAN_FIELDS = {
 PUBLISHERS = ["Elsevier BV", "Springer Nature", "Wiley", "Taylor & Francis", "SAGE Publishing",
               "Oxford University Press", "MDPI", "Cambridge University Press", "De Gruyter", "Small Society Press"]
 
-rng = np.random.default_rng(42)
+rng = np.random.default_rng(zlib.crc32(RUN.encode()))  # same run name, same numbers
 n = N_JOURNALS
+
+
+def snapshot_dates(run):
+    """Plausible snapshot dates for a run called <year>-Q<quarter>: the quarter before it."""
+    year, quarter = int(run[:4]), int(run[6])
+    month = (quarter - 1) * 3
+    return (f"{year}-{month:02d}-15", f"{year}-{month + 1:02d}-15") if month else (f"{year - 1}-12-15", f"{year}-01-15")
 
 
 def pick(groups):
@@ -101,8 +111,9 @@ for year in YEARS:
     df = df[np.logical_or.reduce(list(member.values()))]
     df.to_parquet(out / f"scores_{year}.parquet", index=False)
 
+openalex_snapshot, register_snapshot = snapshot_dates(RUN)
 manifest = {"run": RUN, "created": date.today().isoformat(), "dummy": True,
-            "openalex_snapshot": None, "norwegian_register_snapshot": None,
+            "openalex_snapshot": openalex_snapshot, "norwegian_register_snapshot": register_snapshot,
             "years": YEARS, "universes": UNIVERSES}
 (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
 print(f"Wrote {out}")

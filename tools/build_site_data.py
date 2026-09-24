@@ -1,7 +1,8 @@
-"""Check data runs and copy them into the website (site/data/), with a runs.json index.
+"""Check data runs and assemble the published data set for the website (site/data/).
 
-Usage: python tools/build_site_data.py <runs_folder> [releases_url]
+Usage: python tools/build_site_data.py <runs_folder> <latest_run> [releases_url]
 <runs_folder> holds one subfolder per run (manifest.json + scores_<year>.parquet, see SPEC.md).
+Score years named in score-years.json come from that run; every other year comes from <latest_run>.
 The deploy workflow runs this on the downloaded releases; locally, run it on export/ to preview the site.
 Stops with an error if a run doesn't match the layout, so nothing broken gets published. Needs pyarrow.
 """
@@ -14,7 +15,9 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-SITE_DATA = Path(__file__).resolve().parent.parent / "site" / "data"
+ROOT = Path(__file__).resolve().parent.parent
+SITE_DATA = ROOT / "site" / "data"
+SCORE_YEARS = ROOT / "score-years.json"  # score year -> the run it is frozen to
 COLUMNS = ["openalex_id", "title", "publisher", "issn_l", "issns", "oa_domain", "oa_field", "norwegian_area",
            "norwegian_field", "norwegian_level", "is_open_access", "score_year", "publications_raw",
            "publications_filtered", "citations_raw", "citations_filtered", "reference_coverage_pct", "active_years"]
@@ -43,44 +46,63 @@ def check_run(folder):
     return manifest
 
 
-def copy_run(folder, manifest):
-    """Copy a run into the site and add the history files used by the journal details."""
-    target = SITE_DATA / folder.name
-    shutil.copytree(folder, target)
-    write_history(target, manifest)
-
-
-def write_history(target, manifest):
-    """Split the scores of all years into 100 small files by the last two digits of the journal ID.
+def write_history(published):
+    """Split all published years into 100 small files by the last two digits of the journal ID.
 
     The journal details then download one small file instead of every year's full file. (GitHub Pages
     compresses Parquet files, so the browser cannot download just the part of a file it needs.)
     """
-    columns = ["openalex_id", "score_year", "norwegian_level", "publications_raw", "publications_filtered",
-               "reference_coverage_pct"]
-    for u in manifest["universes"]:
-        columns += [f"in_{u}", f"share_{u}_raw", f"share_{u}_filtered", f"per_article_{u}_raw", f"per_article_{u}_filtered"]
-    history = pa.concat_tables(pq.read_table(target / f"scores_{year}.parquet", columns=columns)
-                               for year in manifest["years"])
+    tables = []
+    for year in published:
+        columns = ["openalex_id", "score_year", "norwegian_level", "publications_raw", "publications_filtered",
+                   "reference_coverage_pct"]
+        for u in year["universes"]:
+            columns += [f"in_{u}", f"share_{u}_raw", f"share_{u}_filtered", f"per_article_{u}_raw", f"per_article_{u}_filtered"]
+        tables.append(pq.read_table(SITE_DATA / f"scores_{year['year']}.parquet", columns=columns))
+    history = pa.concat_tables(tables, promote_options="default")  # years can have different universes
     group = pc.utf8_slice_codeunits(history["openalex_id"], -2)
-    (target / "history").mkdir()
+    (SITE_DATA / "history").mkdir()
     for key in pc.unique(group).to_pylist():
-        pq.write_table(history.filter(pc.equal(group, key)), target / "history" / f"{key}.parquet")
+        pq.write_table(history.filter(pc.equal(group, key)), SITE_DATA / "history" / f"{key}.parquet")
 
 
-def main(runs_folder, releases_url=None):
+def main(runs_folder, latest_run="", releases_url=None):
+    frozen = json.loads(SCORE_YEARS.read_text(encoding="utf-8")) if SCORE_YEARS.exists() else {}
+    runs, manifests = Path(runs_folder), {}
+
+    def manifest_of(run):
+        if run not in manifests:
+            if not (runs / run).is_dir():
+                sys.exit(f"run '{run}' was not downloaded; is there a release with that name?")
+            manifests[run] = check_run(runs / run)
+        return manifests[run]
+
+    years = {year: latest_run for year in manifest_of(latest_run)["years"]} if latest_run else {}
+    years.update({int(year): run for year, run in frozen.items()})
+
     shutil.rmtree(SITE_DATA, ignore_errors=True)
     SITE_DATA.mkdir(parents=True)
-    runs = []
-    for folder in sorted(p for p in Path(runs_folder).iterdir() if p.is_dir()):
-        manifest = check_run(folder)
-        copy_run(folder, manifest)
-        runs.append({"run": folder.name, "created": manifest["created"], "dummy": manifest.get("dummy", False),
-                     "release_url": f"{releases_url}/tag/{folder.name}" if releases_url else None})
-    runs.sort(key=lambda r: r["created"], reverse=True)
-    index = {"releases_url": releases_url, "runs": runs}
-    (SITE_DATA / "runs.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
-    print(f"Checked {len(runs)} run(s) and copied them to {SITE_DATA}")
+    published = []
+    for year in sorted(years, reverse=True):
+        run = years[year]
+        manifest = manifest_of(run)
+        if year not in manifest["years"]:
+            sys.exit(f"score year {year} is frozen to run '{run}', but that run has no scores_{year}.parquet")
+        shutil.copy2(runs / run / f"scores_{year}.parquet", SITE_DATA / f"scores_{year}.parquet")
+        published.append({
+            "year": year, "status": "frozen" if str(year) in frozen else "live", "run": run,
+            "openalex_snapshot": manifest.get("openalex_snapshot"),
+            "norwegian_register_snapshot": manifest.get("norwegian_register_snapshot"),
+            "created": manifest["created"], "dummy": manifest.get("dummy", False),
+            "universes": manifest["universes"],
+            "release_url": f"{releases_url}/tag/{run}" if releases_url else None,
+        })
+    if published:
+        write_history(published)
+    index = {"releases_url": releases_url, "years": published}
+    (SITE_DATA / "index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+    frozen_count = sum(1 for year in published if year["status"] == "frozen")
+    print(f"Published {len(published)} score year(s), {frozen_count} frozen, to {SITE_DATA}")
 
 
 if __name__ == "__main__":

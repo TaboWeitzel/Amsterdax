@@ -22,6 +22,23 @@ The website shows the new run within a few minutes. To follow progress, open the
 - Red cross on **pages build and deployment**: usually a temporary problem at GitHub. Open the run and click **Re-run failed jobs**.
 - Red cross on **Deploy website**: the files failed a check and nothing was published. The previous version stays online, and GitHub sends you an email with the reason.
 
+## Freezing a score year
+
+A score year that should no longer change is listed in `score-years.json`, with the run it comes from:
+
+```json
+{
+  "2024": "2026-Q2",
+  "2025": "2026-Q2"
+}
+```
+
+- Edit the file on GitHub (pencil icon) and merge the change: from then on, that score year is always published from that run, and new runs no longer change it.
+- A score year that is not listed follows the newest run.
+- Remove a line to let a year follow the newest run again, or change the run name to move it to a different run.
+
+The deploy stops with a clear message if the named run does not exist or does not contain that score year.
+
 ## Fixing mistakes
 
 - **Wrong or missing file:** open the release, click the pencil icon, remove or add files and click **Update release**.

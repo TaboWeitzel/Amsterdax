@@ -23,9 +23,8 @@
     <div class="notice" id="notice" role="status">Loading the data…</div>
 
     <section class="score-controls panel" aria-label="Choose the scores to show">
-      <div class="control run-control"><span class="label-line"><label for="run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip">Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. Use an older run to reproduce earlier results, and the latest run for the most complete data.</span></span></span><select id="run"></select></div>
       <label class="control year-control">Score year<select id="year"></select></label>
-      <fieldset class="universe-control" id="universe"><legend>Universe</legend></fieldset>
+      <label class="control universe-control">Universe<select id="universe"></select></label>
       <button type="button" class="quiet-button settings-button" id="settings-toggle" aria-expanded="false" aria-controls="settings">Settings <span aria-hidden="true">+</span></button>
     </section>
 
@@ -68,7 +67,7 @@
         <label class="visually-hidden" for="field-filter">Filter by field</label><select id="field-filter"><option value="">All fields</option></select>
         <button type="button" class="quiet-button" id="download-view">Download this view (CSV) <span aria-hidden="true">↓</span></button>
       </div>
-      <div class="results-line"><span id="result-count" aria-live="polite"></span><button class="text-button" id="reset" type="button">Reset all</button></div>
+      <div class="results-line"><span id="result-count" aria-live="polite"></span><span class="data-status" id="data-status"></span><span class="help" tabindex="0" aria-label="About frozen and live score years">?<span class="help-text" role="tooltip">A frozen score year is fixed: it always comes from one data run and does not change when new runs arrive. A live score year follows the newest run, so it can still change. The date is the OpenAlex snapshot the scores were computed from.</span></span><button class="text-button" id="reset" type="button">Reset all</button></div>
       <div class="table-scroll" tabindex="0" role="region" aria-label="Scrollable journal table; use the horizontal scrollbar for more columns">
         <table id="journals"><caption class="visually-hidden">Journals and precomputed scores in the selected universe. Activate column headings to sort.</caption><thead id="table-head"></thead><tbody id="table-body"></tbody></table>
       </div>
@@ -79,7 +78,6 @@
     <section class="downloads panel" aria-labelledby="downloads-title">
       <h2 id="downloads-title">Download the data</h2>
       <div class="settings-row">
-        <div class="control run-control"><span class="label-line"><label for="download-run">Data run</label><span class="help" tabindex="0" aria-label="About data runs">?<span class="help-text" role="tooltip">Each data run recalculates all score years with the OpenAlex and Norwegian Register data available at that moment. OpenAlex keeps adding and correcting references, so the same score year can differ slightly between runs. Use an older run to reproduce earlier results, and the latest run for the most complete data.</span></span></span><select id="download-run"></select></div>
         <fieldset class="check-group" id="download-years"><legend>Score years</legend></fieldset>
         <fieldset class="check-group" id="download-universes"><legend>Universes</legend></fieldset>
         <button type="button" class="quiet-button" id="download-build">Download CSV <span aria-hidden="true">↓</span></button>
