@@ -24,10 +24,7 @@ h1 { font-family: Georgia,"Times New Roman",serif; font-size: 36px; font-weight:
 .control { display: flex; flex-direction: column; gap: 7px; font-size: 11px; font-weight: 600; min-width: 0 }
 .control select, .control input[type=number] { height: 36px; border: 1px solid #cdd7d6; border-radius: 5px; padding: 0 10px; background: #fff; color: var(--ink); font-size: 12px; min-width: 0; width: 100% }
 .year-control { width: 96px }
-.universe-control { border: 0; padding: 0; margin: 0; display: flex; gap: 8px; flex-wrap: wrap }
-.universe-control legend { font-size: 11px; font-weight: 600; margin-bottom: 7px }
-.universe-chip { display: flex; align-items: center; gap: 7px; font-size: 12px; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px }
-.universe-chip:has(input:checked) { background: var(--soft); border-color: #aac8bc }
+.universe-control { width: 200px }
 .check-line { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 400; line-height: 1.4 }
 .check-line strong { font-weight: 600 }
 .quiet-button { background: white; border: 1px solid var(--line); border-radius: 5px; padding: 9px 12px; font-size: 11px; white-space: nowrap }
@@ -44,7 +41,6 @@ h1 { font-family: Georgia,"Times New Roman",serif; font-size: 36px; font-weight:
 .search-box { position: relative; flex: 1; min-width: 180px }
 .search-box input { width: 100%; border: 1px solid var(--line); border-radius: 5px; padding: 11px 12px 11px 35px; background: #fafcfb; font-size: 12px; color: var(--ink) }
 .search-icon { position: absolute; left: 11px; top: 5px; font-size: 25px; color: var(--muted) }
-#field-filter { max-width: 270px; padding: 10px 30px 10px 10px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; color: var(--ink); background: #fff }
 .results-line { display: flex; align-items: center; gap: 18px; padding: 0 20px 13px; color: var(--muted); font-size: 11px }
 #result-count { color: var(--ink); font-weight: 600 }
 #reset { margin-left: auto }
@@ -66,7 +62,6 @@ thead th { background: #f1f5f3; font-size: 10px; font-weight: 600; color: #55696
 .journal-column { position: sticky; left: 0; z-index: 2; min-width: 255px; max-width: 290px; text-align: left; background: #fff; border-right: 1px solid var(--line) }
 thead .journal-column { background: #f1f5f3; z-index: 4 }
 .journal-title { background: none; border: 0; display: block; text-align: left; padding: 0; white-space: normal; line-height: 1.4; font-size: 12px; font-weight: 600; color: var(--ink); max-width: 260px }
-.journal-title:hover { color: var(--teal); text-decoration: underline }
 .journal-id { display: inline-block; font-size: 10px; text-decoration: none; margin-top: 5px; color: #65857b }
 .journal-id:hover { text-decoration: underline }
 .field-cell { text-align: left; max-width: 180px; min-width: 150px; white-space: normal; line-height: 1.45; color: #5c6d71 }
@@ -129,13 +124,10 @@ dialog p { font-size: 11px; line-height: 1.7; color: var(--muted) }
   .subtitle { font-size: 12px; line-height: 1.6 }
   .score-controls { padding: 16px }
   .score-controls { gap: 18px }
-  .universe-control { gap: 5px }
-  .universe-chip { font-size: 11px; padding: 0 7px }
   .reference-controls { grid-template-columns: 1fr 1fr; gap: 14px 10px }
   .pool-summary { align-items: start; flex-direction: column; padding: 12px 0; line-height: 1.6 }
   .table-toolbar { padding: 14px; gap: 8px }
   .search-box { flex-basis: 100% }
-  #field-filter { flex: 1; min-width: 120px; max-width: none }
   .quiet-button { padding: 9px; font-size: 10px }
   .results-line { padding: 0 14px 12px; gap: 12px }
   .journal-column { min-width: 208px; max-width: 220px }
@@ -192,3 +184,11 @@ dialog th, dialog td { padding: 8px 10px }
 .data-status { margin-left: 4px; font-weight: 600; color: var(--teal) }
 .data-status.live { color: var(--amber) }
 dialog .vintage { display: block; font-size: 10px; font-weight: 400; color: var(--muted) }
+.more-info { display: inline-block; margin-top: 5px; margin-left: 10px }
+.publisher-filter { min-width: 320px }
+.publisher-filter input[type=search] { height: 36px; border: 1px solid #cdd7d6; border-radius: 5px; padding: 0 10px; font-size: 12px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0 }
+.chip { border: 1px solid #aac8bc; background: var(--soft); color: var(--teal); border-radius: 20px; padding: 4px 10px; font-size: 11px }
+.publisher-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px }
+.publisher-list .hint { margin: 4px 0 0 }
+#domain-filter, #field-filter { margin-bottom: 14px }

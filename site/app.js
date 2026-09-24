@@ -14,23 +14,21 @@ const METRICS = {
   share: { short: 'JNS', name: 'Journal Network Share', note: 'share of citation-network prestige; sums to 100 over the universe', digits: 5 },
   per_article: { short: 'ANS', name: 'Article Network Score', note: 'network share per article; article-weighted mean 1', digits: 3 },
 };
+// The percentile settings start at the values used in the working paper and report.
 const DEFAULTS = {
   treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'oa_field',
-  minCoverage: 20, minYears: 0, topPercent: 100, query: '', fieldFilter: '', publisher: '', level: '',
-  onlyMembers: false, oaOnly: false, poolOnly: false, showPercentiles: false,
+  minCoverage: 20, minYears: 4, topPercent: 70, query: '', domains: [], fields: [], publishers: [],
+  oaOnly: false, poolOnly: true, showPercentiles: false,
   sortKey: 'score:per_article', sortDirection: -1, page: 0,
 };
-const EXAMPLE_PRESET = {
-  treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20,
-  minYears: 4, topPercent: 70, showPercentiles: true, poolOnly: true, query: '', fieldFilter: '', publisher: '',
-  level: '', onlyMembers: false, oaOnly: false, page: 0,
-};
+const PERCENTILE_SETTINGS = ['metric', 'minCoverage', 'minYears', 'topPercent', 'poolOnly'];
+const PUBLISHERS_SHOWN = 40; // the publisher filter shows this many matches at a time
 
 let index;          // data/index.json: the published score years, newest first
 let year;           // the selected score year
 let rows = [];      // journals of the selected score year
 let state = { ...DEFAULTS };
-let ranks, ranksKey, visible, columns, memberCount;
+let ranks, ranksKey, visible, columns, memberCount, publishers = [];
 const historyFiles = new Map(); // history files, downloaded on demand for the journal details
 let historyRequest = 0;
 
@@ -100,8 +98,9 @@ function showDataInfo() {
 
 function getColumns() {
   const cols = [
-    { key: 'title', label: 'Journal', className: 'journal-column align-left', title: 'Click the title for details; click the ID to open OpenAlex' },
-    { key: 'field', label: 'Field', className: 'align-left', title: 'Classification used for within-field ranking' },
+    { key: 'title', label: 'Journal', className: 'journal-column align-left', title: 'Open OpenAlex with the ID, or "More info" for the details' },
+    { key: 'oa_domain', label: 'Domain', className: 'align-left', title: 'OpenAlex domain (broad)' },
+    { key: 'oa_field', label: 'Field', className: 'align-left', title: 'OpenAlex field; percentiles are calculated within these fields' },
   ];
   cols.push(
     { key: 'publications', label: 'Publications', title: `Articles and reviews ${year - 5}–${year - 1}${state.treatment === 'raw' ? '' : ' with at least one linked reference'}` },
@@ -133,10 +132,11 @@ function renderHead() {
 function cell(row, col) {
   const value = E.columnValue(row, state, ranks, col.key);
   const id = row.openalex_id;
-  if (col.key === 'title') return `<td class="journal-column"><button class="journal-title" type="button" data-journal="${escape(id)}">${escape(row.title)}</button>` +
+  if (col.key === 'title') return `<td class="journal-column"><span class="journal-title">${escape(row.title)}</span>` +
     `<a class="journal-id" href="${openAlexUrl(row)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escape(row.title)} in OpenAlex, new tab">${escape(id)} ↗</a>` +
-    `<span class="journal-id"> · ${escape(row.issn_l || 'no ISSN')}</span></td>`;
-  if (col.key === 'field') return `<td class="field-cell">${escape(value)}</td>`;
+    `<span class="journal-id"> · ${escape(row.issn_l || 'no ISSN')}</span>` +
+    `<button type="button" class="text-button more-info" data-journal="${escape(id)}">More info</button></td>`;
+  if (col.key === 'oa_domain' || col.key === 'oa_field') return `<td class="field-cell">${escape(value || 'Unclassified')}</td>`;
   if (col.key === 'reference_coverage_pct') {
     const low = E.isNumber(value) && state.minCoverage >= 0 && value <= state.minCoverage;
     const bar = E.isNumber(value) ? `<div class="coverage-track" aria-hidden="true"><div class="coverage-fill" style="width:${Math.max(0, Math.min(100, value))}%"></div></div>` : '';
@@ -149,12 +149,6 @@ function cell(row, col) {
   }
   if (col.score) {
     const metric = col.key.split(':')[1];
-    if (!row[`in_${state.universe}`]) {
-      if (metric !== Object.keys(METRICS)[0]) return ''; // one note spans all score columns
-      const other = universeIds().find(u => u !== state.universe && row[`in_${u}`]);
-      const link = other ? ` <button type="button" class="text-button" data-universe="${escape(other)}">Show in ${escape(universeName(other))}</button>` : '';
-      return `<td colspan="${Object.keys(METRICS).length}" class="not-member-cell group-start">Not in the ${escape(universeName(state.universe))} universe.${link}</td>`;
-    }
     const classes = `metric-cell ${col.className || ''} ${metric === 'per_article' ? 'per-article-cell' : ''}`;
     return `<td class="${classes} ${value == null ? 'missing' : ''}" title="${value == null ? 'In this universe, but no score' : escape(value)}">${fmtScore(value, metric)}</td>`;
   }
@@ -179,8 +173,9 @@ function drawPage() {
   const shown = visible.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE);
   renderHead();
   $('table-body').innerHTML = shown.length ? shown.map(row => `<tr>${columns.map(col => cell(row, col)).join('')}</tr>`).join('')
-    : `<tr><td colspan="${columns.length}" class="empty-cell">No journals match these choices. Try a broader search or reset the filters.</td></tr>`;
-  $('result-count').textContent = `${count(visible.length)} journals shown · ${count(memberCount)} of ${count(rows.length)} are in the ${universeName(state.universe)} universe`;
+    : `<tr><td colspan="${columns.length}" class="empty-cell">No journals match these choices in the ${escape(universeName(state.universe))} universe.` +
+      `${matchesElsewhere()} Try a broader search or reset the filters.</td></tr>`;
+  $('result-count').textContent = `${count(visible.length)} of ${count(memberCount)} journals in the ${universeName(state.universe)} universe`;
   $('pool-summary').innerHTML = `<strong>${count(ranks.qualified)}</strong> meet the requirements · <strong>${count(ranks.groups)}</strong> fields · ` +
     `<strong>${count(ranks.retained)}</strong> retained for the final percentile${ranks.retained ? '' : ' — broaden the requirements to define percentiles'}`;
   $('page-status').textContent = visible.length ? `${count(state.page * PAGE_SIZE + 1)}–${count(state.page * PAGE_SIZE + shown.length)} of ${count(visible.length)} journals` : '0 journals';
@@ -192,31 +187,59 @@ function drawPage() {
 
 // ---- Controls ----
 
-const SELECTS = { metric: 'metric', classification: 'classification', coverage: 'minCoverage', 'min-years': 'minYears',
-  'field-filter': 'fieldFilter', publisher: 'publisher', level: 'level' };
+const SELECTS = { metric: 'metric', coverage: 'minCoverage', 'min-years': 'minYears' };
 const NUMERIC = new Set(['minCoverage', 'minYears']);
-const CHECKBOXES = { 'only-members': 'onlyMembers', 'oa-only': 'oaOnly', 'show-percentiles': 'showPercentiles', 'pool-only': 'poolOnly' };
+const CHECKBOXES = { 'oa-only': 'oaOnly', 'show-percentiles': 'showPercentiles', 'pool-only': 'poolOnly' };
 
-function setChoices(id, values, label) {
-  const unique = [...new Set(values.filter(v => v != null && v !== ''))].sort((a, b) => E.compareText(String(a), String(b)));
-  $(id).innerHTML = option('', label) + unique.map(v => option(v, v)).join('');
-  if (!unique.map(String).includes(String(state[SELECTS[id]]))) state[SELECTS[id]] = '';
+// When a search finds nothing here, say where the journals are instead.
+function matchesElsewhere() {
+  const query = state.query.toLowerCase().trim();
+  if (!query) return '';
+  return universeIds().filter(u => u !== state.universe).map(u => {
+    const matches = rows.filter(row => row[`in_${u}`] && E.searchText(row).includes(query)).length;
+    if (!matches) return '';
+    return ` ${matches === 1 ? '1 journal matches' : `${count(matches)} journals match`} in the ${universeName(u)} universe.`;
+  }).join('');
+}
+
+const uniqueValues = values => [...new Set(values.filter(Boolean))].sort(E.compareText);
+
+function setBoxes(id, legend, values, key) {
+  state[key] = state[key].filter(value => values.includes(value));
+  $(id).innerHTML = `<legend>${legend}</legend>` + values.map(value =>
+    `<label class="check-line"><input type="checkbox" value="${escape(value)}"${state[key].includes(value) ? ' checked' : ''}>${escape(value)}</label>`).join('');
 }
 
 function fillFilters() {
-  setChoices('field-filter', rows.map(row => E.field(row, state)), 'All fields');
-  setChoices('publisher', rows.map(row => row.publisher), 'All publishers');
-  setChoices('level', rows.map(row => row.norwegian_level), 'All levels');
+  const inUniverse = rows.filter(row => row[`in_${state.universe}`]);
+  setBoxes('domain-filter', 'OpenAlex domains', uniqueValues(inUniverse.map(row => row.oa_domain)), 'domains');
+  setBoxes('field-filter', 'OpenAlex fields', uniqueValues(inUniverse.map(row => row.oa_field)), 'fields');
+  publishers = uniqueValues(inUniverse.map(row => row.publisher));
+  state.publishers = state.publishers.filter(value => publishers.includes(value));
+  drawPublisherFilter();
+}
+
+// Thousands of publishers: show the ones matching the search, with the chosen ones as chips.
+function drawPublisherFilter() {
+  const query = $('publisher-search').value.toLowerCase().trim();
+  const matches = publishers.filter(name => name.toLowerCase().includes(query));
+  const shown = matches.slice(0, PUBLISHERS_SHOWN);
+  $('publisher-chips').innerHTML = state.publishers.map(name =>
+    `<button type="button" class="chip" data-publisher="${escape(name)}" aria-label="Remove ${escape(name)}">${escape(name)} ×</button>`).join('');
+  $('publisher-list').innerHTML = shown.map(name =>
+    `<label class="check-line"><input type="checkbox" value="${escape(name)}"${state.publishers.includes(name) ? ' checked' : ''}>${escape(name)}</label>`).join('') +
+    (matches.length > shown.length ? `<p class="hint">${count(matches.length - shown.length)} more; refine the search.</p>` : '') +
+    (matches.length ? '' : '<p class="hint">No publishers match.</p>');
 }
 
 function syncControls() {
   for (const [id, key] of Object.entries(SELECTS)) $(id).value = state[key];
   for (const [id, key] of Object.entries(CHECKBOXES)) $(id).checked = state[key];
   $('year').value = year;
+  $('universe').value = state.universe;
   $('search').value = state.query;
   $('top-percent').value = state.topPercent;
   $('include-zero').checked = state.treatment === 'raw';
-  $('universe').querySelectorAll('input').forEach(radio => { radio.checked = radio.value === state.universe; });
 }
 
 function showJournal(id) {
@@ -300,7 +323,6 @@ function saveCsv(filename, parts) {
 }
 
 function csvHeader(key) {
-  if (key === 'field') return state.classification;
   if (key === 'fieldPct') return 'field_percentile';
   if (key === 'poolPct') return 'pool_percentile';
   if (key === 'publications' || key === 'citations') return `${key}_${state.treatment}`;
@@ -371,7 +393,6 @@ const update = changes => { Object.assign(state, changes, { page: 0 }); render()
 
 for (const [id, key] of Object.entries(SELECTS)) $(id).addEventListener('change', event => {
   const value = NUMERIC.has(key) ? Number(event.target.value) : event.target.value;
-  if (key === 'classification') { state.classification = value; state.fieldFilter = ''; fillFilters(); }
   update({ [key]: value });
 });
 for (const [id, key] of Object.entries(CHECKBOXES)) $(id).addEventListener('change', event => update({ [key]: event.target.checked }));
@@ -399,19 +420,32 @@ $('table-head').addEventListener('click', event => {
   $('table-head').querySelector(`[data-sort="${key}"]`)?.focus({ preventScroll: true });
 });
 $('table-body').addEventListener('click', event => {
-  const universe = event.target.closest('[data-universe]')?.dataset.universe;
-  if (universe) { update({ universe }); syncControls(); return; }
   const id = event.target.closest('[data-journal]')?.dataset.journal;
   if (id) showJournal(id);
+});
+for (const [id, key] of [['domain-filter', 'domains'], ['field-filter', 'fields']]) {
+  $(id).addEventListener('change', () => update({ [key]: [...$(id).querySelectorAll('input:checked')].map(box => box.value) }));
+}
+$('publisher-search').addEventListener('input', drawPublisherFilter);
+$('publisher-list').addEventListener('change', event => {
+  const name = event.target.value;
+  update({ publishers: event.target.checked ? [...state.publishers, name] : state.publishers.filter(p => p !== name) });
+  drawPublisherFilter();
+});
+$('publisher-chips').addEventListener('click', event => {
+  const name = event.target.closest('[data-publisher]')?.dataset.publisher;
+  if (!name) return;
+  update({ publishers: state.publishers.filter(p => p !== name) });
+  drawPublisherFilter();
 });
 $('previous').addEventListener('click', () => { state.page--; drawPage(); });
 $('next').addEventListener('click', () => { state.page++; drawPage(); });
 $('download-view').addEventListener('click', downloadView);
 $('download-build').addEventListener('click', downloadSelection);
 $('close-dialog').addEventListener('click', () => $('journal-dialog').close());
-$('example-preset').addEventListener('click', () => {
-  Object.assign(state, EXAMPLE_PRESET);
-  fillFilters(); syncControls(); render();
+$('reset-percentiles').addEventListener('click', () => {
+  update(Object.fromEntries(PERCENTILE_SETTINGS.map(key => [key, DEFAULTS[key]])));
+  syncControls();
 });
 $('reset').addEventListener('click', () => {
   state = { ...DEFAULTS };
