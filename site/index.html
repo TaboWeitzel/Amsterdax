@@ -37,17 +37,24 @@
       </div>
       <div class="settings-group">
         <h2>Filters and columns</h2>
-        <fieldset class="check-group" id="domain-filter"><legend>OpenAlex domains</legend></fieldset>
-        <fieldset class="check-group" id="field-filter"><legend>OpenAlex fields</legend></fieldset>
-        <div class="settings-row">
-          <div class="control publisher-filter">
-            <label for="publisher-search">Publishers</label>
-            <input id="publisher-search" type="search" placeholder="Search publishers…">
-            <div class="chips" id="publisher-chips"></div>
-            <div class="publisher-list" id="publisher-list"></div>
-          </div>
-          <label class="check-line"><input id="oa-only" type="checkbox">Open access journals only</label>
+        <div class="filter-grid">
+          <fieldset class="filter-box">
+            <legend id="domain-legend">OpenAlex domains</legend>
+            <input id="domain-search" type="search" aria-label="Search domains" placeholder="Search…">
+            <div class="filter-list" id="domain-filter"></div>
+          </fieldset>
+          <fieldset class="filter-box">
+            <legend id="field-legend">OpenAlex fields</legend>
+            <input id="field-search" type="search" aria-label="Search fields" placeholder="Search…">
+            <div class="filter-list" id="field-filter"></div>
+          </fieldset>
+          <fieldset class="filter-box">
+            <legend id="publisher-legend">Publishers</legend>
+            <input id="publisher-search" type="search" aria-label="Search publishers" placeholder="Search…">
+            <div class="filter-list" id="publisher-list"></div>
+          </fieldset>
         </div>
+        <label class="check-line oa-only-line"><input id="oa-only" type="checkbox">Open access journals only</label>
       </div>
       <div class="settings-group">
         <h2>Percentiles</h2>
