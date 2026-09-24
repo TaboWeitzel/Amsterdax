@@ -33,15 +33,19 @@
         <h2>Scores and journals</h2>
         <div class="settings-row">
           <div><label class="check-line"><input id="include-zero" type="checkbox"><strong>Include publications with no linked references</strong></label><p class="hint" id="treatment-note"></p></div>
-          <label class="check-line"><input id="only-members" type="checkbox">Only journals in the selected universe</label>
         </div>
       </div>
       <div class="settings-group">
         <h2>Filters and columns</h2>
+        <fieldset class="check-group" id="domain-filter"><legend>OpenAlex domains</legend></fieldset>
+        <fieldset class="check-group" id="field-filter"><legend>OpenAlex fields</legend></fieldset>
         <div class="settings-row">
-          <label class="control">Field classification<select id="classification"><option value="oa_field">OpenAlex · fields (narrower)</option><option value="oa_domain">OpenAlex · domains (broad)</option><option value="norwegian_field">Norwegian · fields (narrower)</option><option value="norwegian_area">Norwegian · areas (broad)</option></select></label>
-          <label class="control">Publisher<select id="publisher"><option value="">All publishers</option></select></label>
-          <label class="control">Norwegian level<select id="level"><option value="">All levels</option></select></label>
+          <div class="control publisher-filter">
+            <label for="publisher-search">Publishers</label>
+            <input id="publisher-search" type="search" placeholder="Search publishers…">
+            <div class="chips" id="publisher-chips"></div>
+            <div class="publisher-list" id="publisher-list"></div>
+          </div>
           <label class="check-line"><input id="oa-only" type="checkbox">Open access journals only</label>
         </div>
       </div>
@@ -54,7 +58,7 @@
             <label class="control">Reference coverage<select id="coverage"><option value="-1">No minimum</option><option value="0">Above 0%</option><option value="20" selected>Above 20%</option><option value="50">Above 50%</option><option value="80">Above 80%</option><option value="90">Above 90%</option></select></label>
             <label class="control">Years with output<select id="min-years"><option value="0" selected>No minimum</option><option value="4">At least 4 of 5</option><option value="5">All 5 years</option></select></label>
             <label class="control top-control">Retain top % per field<div class="input-suffix"><input id="top-percent" type="number" min="1" max="100" step="1" value="100"><span>%</span></div></label>
-            <button type="button" class="quiet-button" id="example-preset" title="Filtered scores, Norwegian Register, ANS, OpenAlex fields, reference coverage above 20%, output in at least 4 of 5 years, top 70% per field">Example preset</button>
+            <button type="button" class="quiet-button" id="reset-percentiles" title="Back to the values from the working paper and report: ANS, reference coverage above 20%, output in at least 4 of 5 years, top 70% per field">Reset percentile settings</button>
           </div>
           <div class="pool-summary"><span id="pool-summary" aria-live="polite"></span><label class="check-line"><input id="pool-only" type="checkbox">Show only retained journals</label></div>
         </div>
@@ -64,7 +68,6 @@
     <section class="table-panel panel" aria-label="Journal results">
       <div class="table-toolbar">
         <label class="search-box"><span class="search-icon" aria-hidden="true">⌕</span><input id="search" type="search" aria-label="Search journals" placeholder="Search journal, ISSN, source ID or publisher…"></label>
-        <label class="visually-hidden" for="field-filter">Filter by field</label><select id="field-filter"><option value="">All fields</option></select>
         <button type="button" class="quiet-button" id="download-view">Download this view (CSV) <span aria-hidden="true">↓</span></button>
       </div>
       <div class="results-line"><span id="result-count" aria-live="polite"></span><span class="data-status" id="data-status"></span><span class="help" tabindex="0" aria-label="About frozen and live score years">?<span class="help-text" role="tooltip">A frozen score year is fixed: it always comes from one data run and does not change when new runs arrive. A live score year follows the newest run, so it can still change. The date is the OpenAlex snapshot the scores were computed from.</span></span><button class="text-button" id="reset" type="button">Reset all</button></div>

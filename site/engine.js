@@ -87,24 +87,23 @@ export function columnValue(row, state, ranks, key) {
   return row[key] ?? null;
 }
 
-// Rows to show: filters and search only change what is visible, never the percentiles.
+// Rows to show: only journals in the selected universe. Filters and search change what is visible,
+// never the percentiles. Empty filter lists mean "no restriction".
 export function view(rows, state, ranks) {
   const query = state.query.toLowerCase().trim();
+  const domains = new Set(state.domains), fields = new Set(state.fields), publishers = new Set(state.publishers);
   const shown = rows.filter(row =>
-    (!state.fieldFilter || field(row, state) === state.fieldFilter) &&
-    (!state.publisher || row.publisher === state.publisher) &&
-    (!state.level || String(row.norwegian_level ?? '') === state.level) &&
-    (!state.onlyMembers || row[`in_${state.universe}`]) &&
+    row[`in_${state.universe}`] &&
+    (!domains.size || domains.has(row.oa_domain)) &&
+    (!fields.size || fields.has(row.oa_field)) &&
+    (!publishers.size || publishers.has(row.publisher)) &&
     (!state.oaOnly || row.is_open_access === true) &&
     (!state.poolOnly || ranks.poolRanks.has(row.openalex_id)) &&
     (!query || searchText(row).includes(query)));
-  // Journals outside the selected universe come last; within each part, missing values sort last in
-  // both directions and ties fall back to the title.
-  const outside = row => (row[`in_${state.universe}`] ? 0 : 1);
+  // Missing values sort last in both directions; ties fall back to the title.
   const sortValue = row => state.sortKey === 'title' ? row.titleOrder : columnValue(row, state, ranks, state.sortKey);
   const keyed = shown.map(row => [sortValue(row), row]);
   keyed.sort(([a, rowA], [b, rowB]) => {
-    if (outside(rowA) !== outside(rowB)) return outside(rowA) - outside(rowB);
     if (a == null && b == null) return rowA.titleOrder - rowB.titleOrder;
     if (a == null) return 1;
     if (b == null) return -1;

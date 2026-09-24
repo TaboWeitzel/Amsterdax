@@ -10,11 +10,11 @@ function equal(actual, expected) {
 }
 
 const base = { treatment: 'raw', universe: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20, minYears: 4,
-  topPercent: 70, query: '', fieldFilter: '', publisher: '', level: '', onlyMembers: false, oaOnly: false, poolOnly: false,
+  topPercent: 70, query: '', domains: [], fields: [], publishers: [], oaOnly: false, poolOnly: false,
   sortKey: 'score:per_article', sortDirection: -1 };
 
 function journal(id, score, { coverage = 90, activeYears = 5, field = 'Economics', level = 1, inN = true } = {}) {
-  return { openalex_id: id, title: id, publisher: 'Test publisher', oa_field: field, norwegian_level: level,
+  return { openalex_id: id, title: id, publisher: 'Test publisher', oa_domain: 'Social Sciences', oa_field: field, norwegian_level: level,
     reference_coverage_pct: coverage, active_years: activeYears, publications_raw: 100, publications_filtered: 80,
     in_n: inN, share_n_raw: score == null ? null : score / 100, per_article_n_raw: score,
     share_n_filtered: 0.01, per_article_n_filtered: score == null ? null : score / 2 };
@@ -43,24 +43,18 @@ check('The top-share cut is strict, and ties stay together', () => {
 });
 check('Search and filters change what is shown, not the percentiles', () => {
   const r = E.rank(fixture, base);
-  const filtered = { ...base, query: 'high', publisher: 'Test publisher', poolOnly: true };
+  const filtered = { ...base, query: 'high', publishers: ['Test publisher'], poolOnly: true };
   equal(JSON.stringify([...E.rank(fixture, filtered).poolRanks]), JSON.stringify([...r.poolRanks]));
   equal(E.view(fixture, filtered, r).length, 1);
-  equal(E.view(fixture, { ...base, onlyMembers: true }, r).some(row => row.openalex_id === 'outside'), false);
+  equal(E.view(fixture, { ...base, domains: ['Social Sciences'] }, r).length, E.view(fixture, base, r).length);
+  equal(E.view(fixture, { ...base, fields: ['Medicine'] }, r).length, 1);
+  equal(E.view(fixture, { ...base, publishers: ['Other publisher'] }, r).length, 0);
 });
-check('Journals outside the universe come last, then missing scores; zero stays a number', () => {
+check('Journals outside the universe are never shown; missing scores sort last, zero stays a number', () => {
   const r = E.rank(fixture, base);
-  for (const direction of [1, -1]) {
-    const shown = E.view(fixture, { ...base, sortDirection: direction }, r);
-    equal(shown.at(-1).openalex_id, 'outside'); equal(shown.at(-2).openalex_id, 'missing');
-  }
-  equal(E.view(fixture, { ...base, sortKey: 'title', sortDirection: 1 }, r).at(-1).openalex_id, 'outside');
+  equal(E.view(fixture, base, r).some(row => row.openalex_id === 'outside'), false);
+  for (const direction of [1, -1]) equal(E.view(fixture, { ...base, sortDirection: direction }, r).at(-1).openalex_id, 'missing');
   equal(E.view(fixture, { ...base, sortDirection: 1 }, r)[0].openalex_id, 'zero');
-});
-check('Norwegian level filter matches the level in the score year', () => {
-  const rows = [journal('levelOne', 1, { level: 1 })], r = E.rank(rows, base);
-  equal(E.view(rows, { ...base, level: '1' }, r).length, 1);
-  equal(E.view(rows, { ...base, level: '2' }, r).length, 0);
 });
 check('Treatment switches scores and publication counts, not coverage', () => {
   const row = journal('treatment', 4), filtered = { ...base, treatment: 'filtered' };
