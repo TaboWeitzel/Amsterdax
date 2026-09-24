@@ -88,10 +88,8 @@ site/data/history/00…99.parquet  all years per group of journals, for the jour
 
 ## Website
 
-Based on the existing demo prototype.
-
 - Top bar: score year, universe (dropdown, the universes of the selected year) and a Settings button. All other choices are in one collapsible settings panel.
-- Above the table, next to the journal count: whether the year is frozen or live, plus the OpenAlex snapshot date, e.g. "Frozen · 2026-06" or "Live · 2026-09". The run name and the other snapshot dates are shown on hover.
+- Above the table, next to the journal count: whether the year is frozen or live, plus the OpenAlex snapshot date, e.g. "Frozen · 2026-06" or "Live · 2026-09". The run name and the other snapshot dates are shown on hover, and a "?" explains the difference between frozen and live.
 - The table shows only journals in the selected universe, with their JNS and ANS. Search by title, ID, ISSN or publisher; sort by any column; rows are shown a page at a time.
 - When a search finds nothing, a line reports how many journals match in another universe, e.g. "3 journals match in the OpenAlex universe".
 - Columns: journal (with a "More info" link that opens the details), OpenAlex domain, OpenAlex field, publications, citations, reference coverage, JNS and ANS, plus the percentile columns when those are switched on.
@@ -99,7 +97,7 @@ Based on the existing demo prototype.
 - Defaults: Filtered scores; a setting switches to Raw.
 - Percentiles are hidden until they are switched on. Their settings start at the values from the working paper and report (ANS, reference coverage above 20%, output in at least 4 of 5 years, top 70% per field) and a "Reset percentile settings" button returns to them. They are computed in the browser, within the selected universe, grouped by OpenAlex field. Ties get the highest shared rank.
 - Journal detail view: metadata, a link to OpenAlex, the Norwegian level linked to the register's explanation of levels, and a table with the journal's scores in every published score year (selected universe and Raw/Filtered), including each year's data vintage. The other years come from small history files, downloaded when a journal is opened.
-- Downloads: the current view as CSV; one CSV built from chosen score years and universes of the published data set (journals in at least one chosen universe, Raw and Filtered columns); complete Parquet files per year; older runs via the releases page.
+- Downloads: the current view as CSV; one CSV built from chosen score years and universes of the published data set (journals in at least one chosen universe, Raw and Filtered columns, and the run each score year came from); complete Parquet files per year; older runs via the releases page.
 - About page (`about.html`, no table): what the scores measure, journal universes, Raw and Filtered scores, frozen and live score years with their data vintage, a summary of the working paper and how to cite it, and data sources with attribution (Norwegian Register). Both pages share a small navigation.
 - Dummy data runs show a clear banner.
 
@@ -108,7 +106,7 @@ Based on the existing demo prototype.
 ```
 site/                  the website (data/ is filled in by the deploy workflow)
 tests/                 tests for the ranking logic
-tools/                 make_dummy_data.py, build_site_data.py (checks runs, assembles the published data set, writes 100 small history files)
+tools/                 make_dummy_data.py, build_site_data.py (checks runs, assembles the published data set, writes 100 small history files), serve_site.py (local preview)
 .github/workflows/     deploy workflow
 score-years.json       which score years are frozen, and from which run
 ```
@@ -118,5 +116,5 @@ score-years.json       which score years are frozen, and from which run
 - Score names: JNS and ANS are our own names. Permission or legal advice on the original names is still open.
 - License for the code and for the data.
 - Custom domain.
-- Small-field pooling for percentiles: the report pools fields with fewer than 100 journals, the demo doesn't.
+- Small-field pooling for percentiles: the report pools fields with fewer than 100 journals, this site doesn't.
 - First real run from the back-end, including the `in_<u>` flags.

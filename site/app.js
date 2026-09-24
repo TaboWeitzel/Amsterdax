@@ -16,7 +16,7 @@ const METRICS = {
 };
 // The percentile settings start at the values used in the working paper and report.
 const DEFAULTS = {
-  treatment: 'filtered', universe: 'n', metric: 'per_article', classification: 'oa_field',
+  treatment: 'filtered', universe: 'n', metric: 'per_article',
   minCoverage: 20, minYears: 4, topPercent: 70, query: '', domains: [], fields: [], publishers: [],
   oaOnly: false, poolOnly: true, showPercentiles: false,
   sortKey: 'score:per_article', sortDirection: -1, page: 0,
@@ -157,7 +157,7 @@ function cell(row, col) {
 
 function render() {
   // Percentiles only depend on the ranking settings, so they are recomputed only when those change.
-  const key = JSON.stringify([state.treatment, state.universe, state.metric, state.classification, state.minCoverage, state.minYears, state.topPercent]);
+  const key = JSON.stringify([state.treatment, state.universe, state.metric, state.minCoverage, state.minYears, state.topPercent]);
   if (key !== ranksKey) { ranks = E.rank(rows, state); ranksKey = key; }
   columns = getColumns();
   if (!columns.some(col => col.key === state.sortKey)) Object.assign(state, { sortKey: 'title', sortDirection: 1 });
@@ -333,9 +333,9 @@ function csvHeader(key) {
 function downloadView() {
   const entry = publishedYear();
   const settings = { score_year: year, data_status: entry.status, run: entry.run, openalex_snapshot: entry.openalex_snapshot,
-    universe: state.universe, treatment: state.treatment, classification: state.classification };
+    universe: state.universe, treatment: state.treatment };
   if (state.showPercentiles) Object.assign(settings, {
-    ranking_indicator: state.metric, coverage_strictly_above_pct: state.minCoverage < 0 ? 'none' : state.minCoverage,
+    ranking_indicator: state.metric, percentiles_grouped_by: E.FIELD_COLUMN, coverage_strictly_above_pct: state.minCoverage < 0 ? 'none' : state.minCoverage,
     minimum_output_years: state.minYears, retained_top_pct_per_field: state.topPercent, final_pool_size: ranks.retained,
   });
   const reason = row => (state.showPercentiles ? [ranks.reasons.get(row.openalex_id) || ''] : []);
@@ -419,7 +419,7 @@ $('settings-toggle').addEventListener('click', () => {
 $('table-head').addEventListener('click', event => {
   const key = event.target.closest('[data-sort]')?.dataset.sort;
   if (!key) return;
-  const textColumn = ['title', 'field'].includes(key);
+  const textColumn = ['title', 'oa_domain', 'oa_field'].includes(key);
   update({ sortKey: key, sortDirection: state.sortKey === key ? -state.sortDirection : textColumn ? 1 : -1 });
   $('table-head').querySelector(`[data-sort="${key}"]`)?.focus({ preventScroll: true });
 });

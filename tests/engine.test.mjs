@@ -9,12 +9,12 @@ function equal(actual, expected) {
   if (actual !== expected) throw new Error(`expected ${expected}, got ${actual}`);
 }
 
-const base = { treatment: 'raw', universe: 'n', metric: 'per_article', classification: 'oa_field', minCoverage: 20, minYears: 4,
+const base = { treatment: 'raw', universe: 'n', metric: 'per_article', minCoverage: 20, minYears: 4,
   topPercent: 70, query: '', domains: [], fields: [], publishers: [], oaOnly: false, poolOnly: false,
   sortKey: 'score:per_article', sortDirection: -1 };
 
-function journal(id, score, { coverage = 90, activeYears = 5, field = 'Economics', level = 1, inN = true } = {}) {
-  return { openalex_id: id, title: id, publisher: 'Test publisher', oa_domain: 'Social Sciences', oa_field: field, norwegian_level: level,
+function journal(id, score, { coverage = 90, activeYears = 5, field = 'Economics', inN = true } = {}) {
+  return { openalex_id: id, title: id, publisher: 'Test publisher', oa_domain: 'Social Sciences', oa_field: field,
     reference_coverage_pct: coverage, active_years: activeYears, publications_raw: 100, publications_filtered: 80,
     in_n: inN, share_n_raw: score == null ? null : score / 100, per_article_n_raw: score,
     share_n_filtered: 0.01, per_article_n_filtered: score == null ? null : score / 2 };
