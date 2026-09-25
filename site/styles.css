@@ -191,3 +191,8 @@ dialog .vintage { display: block; font-size: 10px; font-weight: 400; color: var(
 .filter-list { height: 148px; overflow-y: auto; border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px }
 .filter-list .hint { margin: 2px 0 0 }
 .oa-only-line { margin-top: 14px }
+.picker { position: relative }
+.picker summary { height: 36px; border: 1px solid #cdd7d6; border-radius: 5px; padding: 0 28px 0 10px; background: #fff; font-size: 12px; font-weight: 400; display: flex; align-items: center; cursor: pointer; list-style: none }
+.picker summary::-webkit-details-marker { display: none }
+.picker summary::after { content: 'BE'; position: absolute; right: 10px; top: 9px; color: var(--muted) }
+.picker-list { position: absolute; z-index: 5; top: 41px; left: 0; min-width: 100%; flex-direction: column; align-items: start; gap: 9px; white-space: nowrap; background: #fff; border: 1px solid var(--line); border-radius: 5px; padding: 11px 13px; box-shadow: 0 6px 18px rgba(20,50,40,.10) }
