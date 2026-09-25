@@ -351,8 +351,10 @@ function showDownloadChoices() {
   const box = (value, label) => `<label class="check-line"><input type="checkbox" value="${escape(value)}" checked>${escape(label)}</label>`;
   const universes = Object.assign({}, ...index.years.map(entry => entry.universes));
   const vintage = entry => `${entry.year} (${entry.status} · ${(entry.openalex_snapshot ?? '').slice(0, 7) || 'date unknown'})`;
-  $('download-years').innerHTML = option('all', 'All score years') + index.years.map(entry => option(entry.year, vintage(entry))).join('');
+  $('download-years').innerHTML = '<legend class="visually-hidden">Score years</legend>' +
+    index.years.map(entry => box(entry.year, vintage(entry))).join('');
   $('download-universes').innerHTML = '<legend>Universes</legend>' + Object.entries(universes).map(([u, label]) => box(u, label)).join('');
+  showYearChoice();
   $('download-files').innerHTML = 'Complete files per score year, all columns (Parquet): ' +
     index.years.map(entry => `<a href="data/scores_${entry.year}.parquet" download>${entry.year}</a>`).join(' · ') + '.';
   $('download-older').innerHTML = index.releases_url
@@ -360,13 +362,21 @@ function showDownloadChoices() {
     : '';
 }
 
+const chosenBoxes = id => [...$(id).querySelectorAll('input:checked')].map(input => input.value);
+
+// The closed dropdown has to say what is chosen, because the checkboxes are then out of sight.
+function showYearChoice() {
+  const chosen = chosenBoxes('download-years');
+  $('download-years-summary').textContent = !chosen.length ? 'No score years'
+    : chosen.length === index.years.length ? 'All score years'
+    : chosen.length === 1 ? `Score year ${chosen[0]}` : `${chosen.length} score years`;
+}
+
 // One CSV with the chosen years and universes, built one year at a time to limit memory use.
 async function downloadSelection() {
-  const chosen = $('download-years').value;
-  const years = chosen === 'all' ? index.years.map(entry => entry.year) : [Number(chosen)];
-  const universes = [...$('download-universes').querySelectorAll('input:checked')].map(input => input.value);
+  const years = chosenBoxes('download-years').map(Number), universes = chosenBoxes('download-universes');
   const status = text => { $('download-status').textContent = text; };
-  if (!universes.length) return status('Choose at least one universe.');
+  if (!years.length || !universes.length) return status('Choose at least one score year and one universe.');
   const universeColumns = u => [`in_${u}`, ...Object.keys(METRICS).flatMap(metric => [`${metric}_${u}_raw`, `${metric}_${u}_filtered`])];
   const columns = [...BASE_COLUMNS, ...universes.flatMap(universeColumns)];
   const source = ['data_status', 'run', 'openalex_snapshot']; // where this score year's numbers come from
@@ -444,6 +454,11 @@ $('previous').addEventListener('click', () => { state.page--; drawPage(); });
 $('next').addEventListener('click', () => { state.page++; drawPage(); });
 $('download-view').addEventListener('click', downloadView);
 $('download-build').addEventListener('click', downloadSelection);
+$('download-years').addEventListener('change', showYearChoice);
+// A dropdown is expected to close when you click elsewhere.
+document.addEventListener('click', event => {
+  if ($('download-years-picker').open && !$('download-years-picker').contains(event.target)) $('download-years-picker').open = false;
+});
 $('close-dialog').addEventListener('click', () => $('journal-dialog').close());
 $('reset-percentiles').addEventListener('click', () => {
   update(Object.fromEntries(PERCENTILE_SETTINGS.map(key => [key, DEFAULTS[key]])));
