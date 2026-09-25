@@ -92,10 +92,9 @@ export function columnValue(row, state, ranks, key) {
 // never the percentiles. Empty filter lists mean "no restriction".
 export function view(rows, state, ranks) {
   const query = state.query.toLowerCase().trim();
-  const domains = new Set(state.domains), fields = new Set(state.fields), publishers = new Set(state.publishers);
+  const fields = new Set(state.fields), publishers = new Set(state.publishers);
   const shown = rows.filter(row =>
     row[`in_${state.universe}`] &&
-    (!domains.size || domains.has(row.oa_domain)) &&
     (!fields.size || fields.has(row[FIELD_COLUMN])) &&
     (!publishers.size || publishers.has(row.publisher)) &&
     (!state.oaOnly || row.is_open_access === true) &&

@@ -17,14 +17,13 @@ const METRICS = {
 // The percentile settings start at the values used in the working paper and report.
 const DEFAULTS = {
   treatment: 'filtered', universe: 'n', metric: 'per_article',
-  minCoverage: 20, minYears: 4, topPercent: 70, query: '', domains: [], fields: [], publishers: [],
+  minCoverage: 20, minYears: 4, topPercent: 70, query: '', fields: [], publishers: [],
   oaOnly: false, poolOnly: true, showPercentiles: false,
   sortKey: 'score:per_article', sortDirection: -1, page: 0,
 };
 const PERCENTILE_SETTINGS = ['metric', 'minCoverage', 'minYears', 'topPercent', 'poolOnly'];
-// The three filter lists, each a search box above a scrollable list of checkboxes.
+// The filter lists, each a search box above a scrollable list of checkboxes.
 const FILTERS = {
-  domains: { column: 'oa_domain', label: 'OpenAlex domains', list: 'domain-filter', search: 'domain-search', legend: 'domain-legend' },
   fields: { column: 'oa_field', label: 'OpenAlex fields', list: 'field-filter', search: 'field-search', legend: 'field-legend' },
   publishers: { column: 'publisher', label: 'Publishers', list: 'publisher-list', search: 'publisher-search', legend: 'publisher-legend' },
 };
@@ -106,7 +105,6 @@ function showDataInfo() {
 function getColumns() {
   const cols = [
     { key: 'title', label: 'Journal', className: 'journal-column align-left', title: 'Open OpenAlex with the ID, or "More info" for the details' },
-    { key: 'oa_domain', label: 'Domain', className: 'align-left', title: 'OpenAlex domain (broad)' },
     { key: 'oa_field', label: 'Field', className: 'align-left', title: 'OpenAlex field; percentiles are calculated within these fields' },
   ];
   cols.push(
@@ -143,7 +141,7 @@ function cell(row, col) {
     `<a class="journal-id" href="${openAlexUrl(row)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escape(row.title)} in OpenAlex, new tab">${escape(id)} ↗</a>` +
     `<span class="journal-id"> · ${escape(row.issn_l || 'no ISSN')}</span>` +
     `<button type="button" class="text-button more-info" data-journal="${escape(id)}">More info</button></td>`;
-  if (col.key === 'oa_domain' || col.key === 'oa_field') return `<td class="field-cell">${escape(value || 'Unclassified')}</td>`;
+  if (col.key === 'oa_field') return `<td class="field-cell">${escape(value || 'Unclassified')}</td>`;
   if (col.key === 'reference_coverage_pct') {
     const low = E.isNumber(value) && state.minCoverage >= 0 && value <= state.minCoverage;
     const bar = E.isNumber(value) ? `<div class="coverage-track" aria-hidden="true"><div class="coverage-fill" style="width:${Math.max(0, Math.min(100, value))}%"></div></div>` : '';
@@ -353,19 +351,22 @@ function showDownloadChoices() {
   const box = (value, label) => `<label class="check-line"><input type="checkbox" value="${escape(value)}" checked>${escape(label)}</label>`;
   const universes = Object.assign({}, ...index.years.map(entry => entry.universes));
   const vintage = entry => `${entry.year} (${entry.status} · ${(entry.openalex_snapshot ?? '').slice(0, 7) || 'date unknown'})`;
-  $('download-years').innerHTML = '<legend>Score years</legend>' + index.years.map(entry => box(entry.year, vintage(entry))).join('');
+  $('download-years').innerHTML = option('all', 'All score years') + index.years.map(entry => option(entry.year, vintage(entry))).join('');
   $('download-universes').innerHTML = '<legend>Universes</legend>' + Object.entries(universes).map(([u, label]) => box(u, label)).join('');
   $('download-files').innerHTML = 'Complete files per score year, all columns (Parquet): ' +
-    index.years.map(entry => `<a href="data/scores_${entry.year}.parquet" download>${entry.year}</a>`).join(' · ') +
-    (index.releases_url ? `. Every data run stays available on the <a href="${escape(index.releases_url)}">releases page</a>.` : '.');
+    index.years.map(entry => `<a href="data/scores_${entry.year}.parquet" download>${entry.year}</a>`).join(' · ') + '.';
+  $('download-older').innerHTML = index.releases_url
+    ? `<strong>Older versions of the data.</strong> The files above are the data set published now. Every earlier data run stays available on the <a href="${escape(index.releases_url)}">releases page</a>, one release per run, each with the same files per score year.`
+    : '';
 }
 
 // One CSV with the chosen years and universes, built one year at a time to limit memory use.
 async function downloadSelection() {
-  const checked = id => [...$(id).querySelectorAll('input:checked')].map(input => input.value);
-  const years = checked('download-years').map(Number), universes = checked('download-universes');
+  const chosen = $('download-years').value;
+  const years = chosen === 'all' ? index.years.map(entry => entry.year) : [Number(chosen)];
+  const universes = [...$('download-universes').querySelectorAll('input:checked')].map(input => input.value);
   const status = text => { $('download-status').textContent = text; };
-  if (!years.length || !universes.length) return status('Choose at least one score year and one universe.');
+  if (!universes.length) return status('Choose at least one universe.');
   const universeColumns = u => [`in_${u}`, ...Object.keys(METRICS).flatMap(metric => [`${metric}_${u}_raw`, `${metric}_${u}_filtered`])];
   const columns = [...BASE_COLUMNS, ...universes.flatMap(universeColumns)];
   const source = ['data_status', 'run', 'openalex_snapshot']; // where this score year's numbers come from
@@ -386,7 +387,8 @@ async function downloadSelection() {
       total += kept.length;
     }
     saveCsv(`amsterdax-${years.join('-')}-${universes.join('-')}.csv`, parts);
-    status(`Saved ${count(total)} rows (${years.length} score years × journals in ${universes.length === 1 ? 'the chosen universe' : 'at least one chosen universe'}).`);
+    status(`Saved ${count(total)} rows · ${years.length === 1 ? `score year ${years[0]}` : `${years.length} score years`}` +
+      ` · journals in ${universes.length === 1 ? 'the chosen universe' : 'at least one chosen universe'}.`);
   } catch (error) {
     status(`The download could not be prepared (${error.message}).`);
   } finally {
@@ -422,7 +424,7 @@ $('settings-toggle').addEventListener('click', () => {
 $('table-head').addEventListener('click', event => {
   const key = event.target.closest('[data-sort]')?.dataset.sort;
   if (!key) return;
-  const textColumn = ['title', 'oa_domain', 'oa_field'].includes(key);
+  const textColumn = ['title', 'oa_field'].includes(key);
   update({ sortKey: key, sortDirection: state.sortKey === key ? -state.sortDirection : textColumn ? 1 : -1 });
   $('table-head').querySelector(`[data-sort="${key}"]`)?.focus({ preventScroll: true });
 });

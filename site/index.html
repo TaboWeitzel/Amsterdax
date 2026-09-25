@@ -39,11 +39,6 @@
         <h2>Filters and columns</h2>
         <div class="filter-grid">
           <fieldset class="filter-box">
-            <legend id="domain-legend">OpenAlex domains</legend>
-            <input id="domain-search" type="search" aria-label="Search domains" placeholder="Search…">
-            <div class="filter-list" id="domain-filter"></div>
-          </fieldset>
-          <fieldset class="filter-box">
             <legend id="field-legend">OpenAlex fields</legend>
             <input id="field-search" type="search" aria-label="Search fields" placeholder="Search…">
             <div class="filter-list" id="field-filter"></div>
@@ -88,12 +83,13 @@
     <section class="downloads panel" aria-labelledby="downloads-title">
       <h2 id="downloads-title">Download the data</h2>
       <div class="settings-row">
-        <fieldset class="check-group" id="download-years"><legend>Score years</legend></fieldset>
+        <label class="control">Score years<select id="download-years"></select></label>
         <fieldset class="check-group" id="download-universes"><legend>Universes</legend></fieldset>
         <button type="button" class="quiet-button" id="download-build">Download CSV <span aria-hidden="true">↓</span></button>
       </div>
-      <p class="hint" id="download-status">One CSV with the chosen score years, for all journals in at least one of the chosen universes.</p>
+      <p class="hint" id="download-status">One CSV for one score year or all of them, with every journal in at least one of the chosen universes.</p>
       <p id="download-files"></p>
+      <p id="download-older"></p>
     </section>
 
     <details class="methodology panel" id="methodology">
