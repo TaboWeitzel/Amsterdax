@@ -1,0 +1,47 @@
+{
+  "releases_url": "https://github.com/TaboWeitzel/Opindx/releases",
+  "years": [
+    {
+      "year": 2025,
+      "status": "live",
+      "run": "2026-Q3",
+      "openalex_snapshot": "2026-06-26",
+      "norwegian_register_snapshot": "2026-07-26",
+      "created": "2026-09-25",
+      "dummy": false,
+      "universes": {
+        "n": "Norwegian Register",
+        "oa": "OpenAlex"
+      },
+      "release_url": "https://github.com/TaboWeitzel/Opindx/releases/tag/2026-Q3"
+    },
+    {
+      "year": 2024,
+      "status": "live",
+      "run": "2026-Q3",
+      "openalex_snapshot": "2026-06-26",
+      "norwegian_register_snapshot": "2026-07-26",
+      "created": "2026-09-25",
+      "dummy": false,
+      "universes": {
+        "n": "Norwegian Register",
+        "oa": "OpenAlex"
+      },
+      "release_url": "https://github.com/TaboWeitzel/Opindx/releases/tag/2026-Q3"
+    },
+    {
+      "year": 2023,
+      "status": "live",
+      "run": "2026-Q3",
+      "openalex_snapshot": "2026-06-26",
+      "norwegian_register_snapshot": "2026-07-26",
+      "created": "2026-09-25",
+      "dummy": false,
+      "universes": {
+        "n": "Norwegian Register",
+        "oa": "OpenAlex"
+      },
+      "release_url": "https://github.com/TaboWeitzel/Opindx/releases/tag/2026-Q3"
+    }
+  ]
+}
