@@ -8,11 +8,18 @@ Each pipeline run is published as a GitHub Release. The website then updates its
 
 ## Steps
 
-1. Run the pipeline. It writes one folder per run, e.g. `export/2026-Q3/`, containing a `scores_<year>.parquet` per score year and a `manifest.json` (exact contents: see `SPEC.md`).
-2. On GitHub, open the repository and click **Releases** (right-hand side), then **Draft a new release**.
-3. Under **Choose a tag**, type the run name exactly as in `manifest.json` (e.g. `2026-Q3`) and select **Create new tag on publish**. Use the same name as the title. This name is also what `score-years.json` refers to.
-4. Drag all files from the export folder into the upload box. Wait until every upload has finished.
-5. Click **Publish release**.
+1. Run the pipeline. It writes one CSV with all score years.
+2. Turn that CSV into the files for the release:
+
+   ```
+   python tools/import_run.py <the csv file> 2026-Q3
+   ```
+
+   `2026-Q3` is the name of the run; use the quarter the data was made in. This writes `export/2026-Q3/`, with a `scores_<year>.parquet` per score year and a `manifest.json` (exact contents: see `SPEC.md`). The command prints how many journals each score year has, per universe; stop and check the CSV if those numbers look wrong.
+3. On GitHub, open the repository and click **Releases** (right-hand side), then **Draft a new release**.
+4. Under **Choose a tag**, type the run name exactly as in `manifest.json` (e.g. `2026-Q3`) and select **Create new tag on publish**. Use the same name as the title. This name is also what `score-years.json` refers to.
+5. Drag all files from the export folder into the upload box. Wait until every upload has finished.
+6. Click **Publish release**.
 
 The live score years show the new run within a few minutes; frozen years stay as they are. The website shows per score year whether it is frozen or live, with the OpenAlex snapshot date from `manifest.json`. To follow progress, open the **Actions** tab. Two runs appear one after the other: **Deploy website** checks the data and builds the site, then **pages build and deployment** puts it online.
 
