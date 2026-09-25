@@ -6,7 +6,7 @@ const $ = id => document.getElementById(id);
 const PAGE_SIZE = 25;
 // Columns in every downloaded CSV; the chosen universes add their own columns.
 const BASE_COLUMNS = ['openalex_id', 'title', 'publisher', 'issn_l', 'issns', 'oa_domain', 'oa_field', 'norwegian_area',
-  'norwegian_field', 'norwegian_level', 'is_open_access', 'score_year', 'publications_raw', 'publications_filtered',
+  'norwegian_field', 'norwegian_level', 'norwegian_register_url', 'is_open_access', 'score_year', 'publications_raw', 'publications_filtered',
   'citations_raw', 'citations_filtered', 'reference_coverage_pct', 'active_years'];
 const LEVELS_URL = 'https://kanalregister.hkdir.no/en/informasjonsartikler/levels-and-changes-in-levels';
 // The only place where the scores are named; the keys match the data columns (see SPEC.md).
@@ -253,7 +253,9 @@ function showJournal(id) {
     ['OpenAlex domain / field', escape([row.oa_domain, row.oa_field].filter(Boolean).join(' / ') || 'Unclassified')],
     ['Norwegian area / field', escape([row.norwegian_area, row.norwegian_field].filter(Boolean).join(' / ') || 'Unclassified')],
     [`Norwegian level ${year}`, row.norwegian_level == null ? 'Not in the register'
-      : `<a href="${LEVELS_URL}" target="_blank" rel="noopener noreferrer">Level ${escape(row.norwegian_level)} ↗ (what levels mean)</a>`],
+      : `Level ${escape(row.norwegian_level)} · ` +
+        (row.norwegian_register_url ? `<a href="${escape(row.norwegian_register_url)}" target="_blank" rel="noopener noreferrer">this journal in the register ↗</a> · ` : '') +
+        `<a href="${LEVELS_URL}" target="_blank" rel="noopener noreferrer">what levels mean ↗</a>`],
     ['Open access journal', row.is_open_access == null ? 'Unknown' : row.is_open_access ? 'Yes' : 'No'],
     ['Publication years', `${fmt(row.active_years)} of 5 with eligible output`],
     ['Reference coverage', E.isNumber(row.reference_coverage_pct) ? `${fmt(row.reference_coverage_pct, 2)}%` : 'Unavailable'],

@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE_DATA = ROOT / "site" / "data"
 SCORE_YEARS = ROOT / "score-years.json"  # score year -> the run it is frozen to
 COLUMNS = ["openalex_id", "title", "publisher", "issn_l", "issns", "oa_domain", "oa_field", "norwegian_area",
-           "norwegian_field", "norwegian_level", "is_open_access", "score_year", "publications_raw",
+           "norwegian_field", "norwegian_level", "norwegian_register_url", "is_open_access", "score_year", "publications_raw",
            "publications_filtered", "citations_raw", "citations_filtered", "reference_coverage_pct", "active_years"]
 
 

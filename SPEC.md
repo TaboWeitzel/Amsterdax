@@ -41,7 +41,8 @@ One release per run. The tag is the run name, e.g. `2026-Q3`. Each release conta
 | `issns` | text | All ISSNs, separated by `; ` |
 | `oa_domain`, `oa_field` | text | OpenAlex primary domain and field |
 | `norwegian_area`, `norwegian_field` | text | Norwegian Register area and field |
-| `norwegian_level` | integer | 1 or 2 in this score year |
+| `norwegian_level` | text | 1 or 2 in this score year; `1 | 2` when the journal has two register entries |
+| `norwegian_register_url` | text | The journal's page in the Norwegian Register; empty when it is not in the register |
 | `is_open_access` | boolean | |
 | `score_year` | integer | Year t |
 | `publications_raw` | integer | Articles and reviews published in t-5 to t-1 |
@@ -54,6 +55,8 @@ One release per run. The tag is the run name, e.g. `2026-Q3`. Each release conta
 | `per_article_<u>_raw`, `per_article_<u>_filtered` | number | ANS in universe `<u>`; article-weighted mean 1; null if not computed |
 
 `<u>` is each universe listed in the manifest. Adding a universe means new columns and a manifest entry, with no website changes.
+
+The back-end delivers one CSV with all score years. `tools/import_run.py` converts it into the files above: it renames the pipeline's columns to the names in the table, takes the snapshot dates from the CSV, and marks a journal as being in the Norwegian Register universe when the run gives it a register entry.
 
 ## Frozen and live score years
 
@@ -96,7 +99,7 @@ site/data/history/00…99.parquet  all years per group of journals, for the jour
 - Filters in the settings panel: OpenAlex domains (multiple), OpenAlex fields (multiple), publishers (multiple) and open access only. Domain and field filters are combined.
 - Defaults: Filtered scores; a setting switches to Raw.
 - Percentiles are hidden until they are switched on. Their settings start at the values from the working paper and report (ANS, reference coverage above 20%, output in at least 4 of 5 years, top 70% per field) and a "Reset percentile settings" button returns to them. They are computed in the browser, within the selected universe, grouped by OpenAlex field. Ties get the highest shared rank.
-- Journal detail view: metadata, a link to OpenAlex, the Norwegian level linked to the register's explanation of levels, and a table with the journal's scores in every published score year (selected universe and Raw/Filtered), including each year's data vintage. The other years come from small history files, downloaded when a journal is opened.
+- Journal detail view: metadata, a link to OpenAlex, the Norwegian level with a link to the journal in the register and to the register's explanation of levels, and a table with the journal's scores in every published score year (selected universe and Raw/Filtered), including each year's data vintage. The other years come from small history files, downloaded when a journal is opened.
 - Downloads: the current view as CSV; one CSV built from chosen score years and universes of the published data set (journals in at least one chosen universe, Raw and Filtered columns, and the run each score year came from); complete Parquet files per year; older runs via the releases page.
 - About page (`about.html`, no table): what the scores measure, journal universes, Raw and Filtered scores, frozen and live score years with their data vintage, a summary of the working paper and how to cite it, and data sources with attribution (Norwegian Register). Both pages share a small navigation.
 - Dummy data runs show a clear banner.
@@ -106,7 +109,7 @@ site/data/history/00…99.parquet  all years per group of journals, for the jour
 ```
 site/                  the website (data/ is filled in by the deploy workflow)
 tests/                 tests for the ranking logic
-tools/                 make_dummy_data.py, build_site_data.py (checks runs, assembles the published data set, writes 100 small history files), serve_site.py (local preview)
+tools/                 import_run.py (back-end CSV -> a run), make_dummy_data.py, build_site_data.py (checks runs, assembles the published data set, writes 100 small history files), serve_site.py (local preview)
 .github/workflows/     deploy workflow
 score-years.json       which score years are frozen, and from which run
 ```
@@ -117,4 +120,3 @@ score-years.json       which score years are frozen, and from which run
 - License for the code and for the data.
 - Custom domain.
 - Small-field pooling for percentiles: the report pools fields with fewer than 100 journals, this site doesn't.
-- First real run from the back-end, including the `in_<u>` flags.

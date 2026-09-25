@@ -72,7 +72,9 @@ journals = pd.DataFrame({
     "oa_field": oa_field,
     "norwegian_area": pd.Series(no_area).where(member["n"]),
     "norwegian_field": pd.Series(no_field).where(member["n"]),
-    "norwegian_level": pd.Series(np.where(rng.random(n) < 0.2, 2, 1)).where(member["n"]).astype("Int64"),
+    # Text, because a journal with two register entries has a level like "1 | 2".
+    "norwegian_level": pd.Series(np.where(rng.random(n) < 0.2, "2", "1")).where(member["n"]).astype("string"),
+    "norwegian_register_url": pd.Series([f"https://kanalregister.hkdir.no/tidsskrift?id={400000 + i}" for i in range(n)]).where(member["n"]),
     "is_open_access": rng.random(n) < 0.3,
 })
 influence = rng.lognormal(0, 1, n)          # drives ANS and citations
