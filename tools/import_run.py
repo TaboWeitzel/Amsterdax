@@ -1,6 +1,6 @@
 """Turn a CSV from the back-end pipeline into a data run in the layout of SPEC.md.
 
-Usage: python tools/import_run.py <csv file> <run name>   (writes export/<run>/)
+Set the three values at the bottom of this file and run it (in VS Code: the Run button).
 The CSV has one row per journal and score year. Needs pandas and pyarrow.
 Stops with an error if a column is missing or a snapshot date is not the same for the whole file.
 """
@@ -39,7 +39,9 @@ def one_value(df, column):
     return str(values[0])
 
 
-def main(csv_file, run):
+def import_run(csv_file, output_location, run_name):
+    if not Path(csv_file).is_file():
+        sys.exit(f"Cannot find the CSV: {csv_file}\nSet file_path at the bottom of this script.")
     # norwegian_level is text: a journal with two register entries has a value like "1 | 2".
     df = pd.read_csv(csv_file, encoding="utf-8-sig", dtype={"norwegian_level": "string"}, low_memory=False)
     df = df.rename(columns=RENAME)
@@ -54,7 +56,7 @@ def main(csv_file, run):
     if missing:
         sys.exit(f"{csv_file}: missing columns {missing}")
 
-    out = Path(__file__).resolve().parent.parent / "export" / run
+    out = Path(output_location) / run_name
     out.mkdir(parents=True, exist_ok=True)
     years = sorted(df["score_year"].unique())
     for year in years:
@@ -62,7 +64,7 @@ def main(csv_file, run):
         rows[COLUMNS].to_parquet(out / f"scores_{year}.parquet", index=False)
         print(f"  {year}: {len(rows):,} journals, " +
               ", ".join(f"{rows[f'in_{u}'].sum():,} in {name}" for u, name in UNIVERSES.items()))
-    manifest = {"run": run, "created": date.today().isoformat(), "dummy": False,
+    manifest = {"run": run_name, "created": date.today().isoformat(), "dummy": False,
                 "openalex_snapshot": one_value(df, "oa_snapshot_version"),
                 "norwegian_register_snapshot": one_value(df, "norwegian_register_snapshot"),
                 "years": [int(year) for year in years], "universes": UNIVERSES}
@@ -70,7 +72,13 @@ def main(csv_file, run):
     print(f"Wrote {out}")
 
 
+# ---------------------------------------------------------------------------
+# Set these three values, then run this file.
+# ---------------------------------------------------------------------------
+
+file_path = r"C:\path\to\journal-data-2023-2025.csv"  # the CSV the pipeline wrote
+output_location = r"C:\path\to\export"                # the folder to write the run into
+run_name = "2026-Q3"                                  # the name of this run, and the release tag on GitHub
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit(__doc__)
-    main(*sys.argv[1:])
+    import_run(file_path, output_location, run_name)

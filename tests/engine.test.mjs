@@ -10,7 +10,7 @@ function equal(actual, expected) {
 }
 
 const base = { treatment: 'raw', universe: 'n', metric: 'per_article', minCoverage: 20, minYears: 4,
-  topPercent: 70, query: '', domains: [], fields: [], publishers: [], oaOnly: false, poolOnly: false,
+  topPercent: 70, query: '', fields: [], publishers: [], oaOnly: false, poolOnly: false,
   sortKey: 'score:per_article', sortDirection: -1 };
 
 function journal(id, score, { coverage = 90, activeYears = 5, field = 'Economics', inN = true } = {}) {
@@ -46,7 +46,6 @@ check('Search and filters change what is shown, not the percentiles', () => {
   const filtered = { ...base, query: 'high', publishers: ['Test publisher'], poolOnly: true };
   equal(JSON.stringify([...E.rank(fixture, filtered).poolRanks]), JSON.stringify([...r.poolRanks]));
   equal(E.view(fixture, filtered, r).length, 1);
-  equal(E.view(fixture, { ...base, domains: ['Social Sciences'] }, r).length, E.view(fixture, base, r).length);
   equal(E.view(fixture, { ...base, fields: ['Medicine'] }, r).length, 1);
   equal(E.view(fixture, { ...base, publishers: ['Other publisher'] }, r).length, 0);
 });

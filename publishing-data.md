@@ -9,13 +9,13 @@ Each pipeline run is published as a GitHub Release. The website then updates its
 ## Steps
 
 1. Run the pipeline. It writes one CSV with all score years.
-2. Turn that CSV into the files for the release:
+2. Turn that CSV into the files for the release. Open `tools/import_run.py`, set the three values at the bottom and run the file (in VS Code: the Run button; there is nothing to type on a command line):
 
-   ```
-   python tools/import_run.py <the csv file> 2026-Q3
-   ```
+   - `file_path`: the CSV the pipeline wrote.
+   - `output_location`: the folder to write the run into.
+   - `run_name`: the name of this run, e.g. `2026-Q3` for the quarter the data was made in. Use the same name as the release tag in the next step.
 
-   `2026-Q3` is the name of the run; use the quarter the data was made in. This writes `export/2026-Q3/`, with a `scores_<year>.parquet` per score year and a `manifest.json` (exact contents: see `SPEC.md`). The command prints how many journals each score year has, per universe; stop and check the CSV if those numbers look wrong.
+   This writes `<output_location>/2026-Q3/`, with a `scores_<year>.parquet` per score year and a `manifest.json` (exact contents: see `SPEC.md`). It prints how many journals each score year has, per universe; stop and check the CSV if those numbers look wrong.
 3. On GitHub, open the repository and click **Releases** (right-hand side), then **Draft a new release**.
 4. Under **Choose a tag**, type the run name exactly as in `manifest.json` (e.g. `2026-Q3`) and select **Create new tag on publish**. Use the same name as the title. This name is also what `score-years.json` refers to.
 5. Drag all files from the export folder into the upload box. Wait until every upload has finished.
