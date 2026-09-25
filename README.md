@@ -17,7 +17,7 @@ python tools/build_site_data.py export 2027-Q1-dummy  # checks the runs and asse
 python tools/serve_site.py                            # then open http://localhost:8000/site/index.html
 ```
 
-To preview a real run instead, convert the back-end CSV first: `python tools/import_run.py <csv file> <run name>`, then build the site data from that run.
+To preview a real run instead, set the three values at the bottom of `tools/import_run.py` and run it, then build the site data from that run.
 
 `score-years.json` decides which score years are frozen to which run; everything else comes from the latest run.
 
