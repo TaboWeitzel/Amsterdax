@@ -1,4 +1,4 @@
-# Amsterdax website
+# Opindx website
 
 Website for browsing and downloading open journal scores (Journal Network Share and Article Network Score) computed from OpenAlex.
 
