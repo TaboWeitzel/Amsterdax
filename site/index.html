@@ -83,11 +83,16 @@
     <section class="downloads panel" aria-labelledby="downloads-title">
       <h2 id="downloads-title">Download the data</h2>
       <div class="settings-row">
-        <label class="control">Score years<select id="download-years"></select></label>
+        <div class="control">Score years
+          <details class="picker" id="download-years-picker">
+            <summary id="download-years-summary">All score years</summary>
+            <fieldset class="check-group picker-list" id="download-years"><legend class="visually-hidden">Score years</legend></fieldset>
+          </details>
+        </div>
         <fieldset class="check-group" id="download-universes"><legend>Universes</legend></fieldset>
         <button type="button" class="quiet-button" id="download-build">Download CSV <span aria-hidden="true">↓</span></button>
       </div>
-      <p class="hint" id="download-status">One CSV for one score year or all of them, with every journal in at least one of the chosen universes.</p>
+      <p class="hint" id="download-status">One CSV with the chosen score years, for every journal in at least one of the chosen universes.</p>
       <p id="download-files"></p>
       <p id="download-older"></p>
     </section>
