@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Open journal scores (Journal Network Share and Article Network Score) computed from OpenAlex, for the Norwegian Register and OpenAlex journal universes.">
   <meta name="color-scheme" content="light">
-  <title>Amsterdax · Open journal scores</title>
+  <title>Opindx · Open journal scores</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
   <header class="masthead">
-    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">A</span> Amsterdax</a>
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">O</span> Opindx</a>
     <span class="masthead-note">Open JNS &amp; ANS from OpenAlex</span>
     <nav class="nav" aria-label="Pages"><a href="index.html" aria-current="page">Journal scores</a><a href="about.html">About</a></nav>
   </header>
@@ -99,7 +99,7 @@
         <section><h3>How percentiles are calculated</h3><p>Start with all journals in the selected universe with a defined score, and apply the reference-coverage and publication-history requirements. Within each field, percentile = 100 × number of eligible journals with an equal or lower score ÷ number of eligible journals in that field. Journals without a field form an explicit “Unclassified” group.</p><p>Keep journals whose field percentile is strictly above 100 minus the retained top percentage. Ties receive their highest shared percentile, so the retained share can exceed the requested percentage. The pool percentile then uses the same formula across all retained journals, on a 0–100 scale.</p><p>The example preset uses Filtered scores in the Norwegian Register universe, ANS, OpenAlex fields, reference coverage strictly above 20%, output in at least 4 of 5 years, and the top 70% within each field.</p></section>
       </div>
     </details>
-    <footer class="page-footer"><span>AMSTERDAX <span aria-hidden="true">/</span> Open journal scores</span><span>Precomputed scores. Transparent comparison groups.</span></footer>
+    <footer class="page-footer"><span>OPINDX <span aria-hidden="true">/</span> Open journal scores</span><span>Precomputed scores. Transparent comparison groups.</span></footer>
   </main>
   <dialog id="journal-dialog" aria-labelledby="dialog-title"><button id="close-dialog" class="dialog-close" aria-label="Close journal details">×</button><div id="dialog-content"></div></dialog>
   <noscript><p class="noscript">Enable JavaScript to search, filter and sort the journal table.</p></noscript>

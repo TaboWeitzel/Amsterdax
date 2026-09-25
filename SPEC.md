@@ -1,6 +1,6 @@
-# Amsterdax website
+# Opindx website
 
-A public website where anyone can browse, filter and download open journal scores: Journal Network Share (JNS), Article Network Score (ANS) and ANS percentiles, computed from OpenAlex by the Amsterdax back-end. JNS and ANS follow the recursive citation-network method of Bergstrom, West and Wiseman (2008). The original names of these scores are trademarks of the University of Washington and are not used. No accounts, no payments; all data is open. Expected traffic is low (a few downloads a day).
+A public website where anyone can browse, filter and download open journal scores: Journal Network Share (JNS), Article Network Score (ANS) and ANS percentiles, computed from OpenAlex by the Opindx back-end. JNS and ANS follow the recursive citation-network method of Bergstrom, West and Wiseman (2008). The original names of these scores are trademarks of the University of Washington and are not used. No accounts, no payments; all data is open. Expected traffic is low (a few downloads a day).
 
 The back-end is a separate project (currently run on a laptop, possibly Docker/cloud later). This project covers the website, the data layout the back-end delivers, and which score years are published from which run.
 

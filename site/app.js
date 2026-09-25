@@ -1,4 +1,4 @@
-// Amsterdax website: loads a data run and draws the journal table. The ranking logic is in engine.js.
+// Opindx website: loads a data run and draws the journal table. The ranking logic is in engine.js.
 import { parquetReadObjects } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.1/+esm';
 import * as E from './engine.js';
 
@@ -344,7 +344,7 @@ function downloadView() {
     ...(state.showPercentiles ? ['percentile_exclusion_reason'] : []), ...Object.keys(settings)];
   const lines = visible.map(row => [row.openalex_id, row[`in_${state.universe}`],
     ...columns.map(c => E.columnValue(row, state, ranks, c.key)), ...reason(row), ...Object.values(settings)]);
-  saveCsv(`amsterdax-${year}-${state.treatment}-view.csv`, [csvLines([header, ...lines])]);
+  saveCsv(`opindx-${year}-${state.treatment}-view.csv`, [csvLines([header, ...lines])]);
 }
 
 function showDownloadChoices() {
@@ -386,7 +386,7 @@ async function downloadSelection() {
       if (kept.length) parts.push('\r\n', csvLines(kept.map(row => [...columns.map(column => row[column]), ...from])));
       total += kept.length;
     }
-    saveCsv(`amsterdax-${years.join('-')}-${universes.join('-')}.csv`, parts);
+    saveCsv(`opindx-${years.join('-')}-${universes.join('-')}.csv`, parts);
     status(`Saved ${count(total)} rows · ${years.length === 1 ? `score year ${years[0]}` : `${years.length} score years`}` +
       ` · journals in ${universes.length === 1 ? 'the chosen universe' : 'at least one chosen universe'}.`);
   } catch (error) {
